@@ -1,0 +1,157 @@
+@use '@/shared/styles/variables' as *;
+@use '@/shared/styles/mixins' as *;
+
+.wrapper {
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.authContainer {
+  background: var(--color-white);
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: var(--spacing-8);
+  border: 1px solid var(--color-gray-200);
+  
+  @include mobile {
+    padding: var(--spacing-6);
+    box-shadow: var(--shadow-md);
+  }
+}
+
+.authButton {
+  @include button-reset;
+  width: 100%;
+  padding: var(--spacing-3) var(--spacing-4);
+  border-radius: var(--border-radius);
+  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-base);
+  transition: all 0.2s ease;
+  cursor: pointer;
+  
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+  }
+  
+  &:active {
+    transform: translateY(0);
+  }
+  
+  &:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+  
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+}
+
+.authInput {
+  width: 100%;
+  padding: var(--spacing-3);
+  border: 1px solid var(--color-gray-300);
+  border-radius: var(--border-radius);
+  font-size: var(--font-size-base);
+  font-family: var(--font-family);
+  transition: all 0.2s ease;
+  background: var(--color-white);
+  
+  &::placeholder {
+    color: var(--color-gray-500);
+  }
+  
+  &:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.1);
+  }
+  
+  &:hover:not(:focus) {
+    border-color: var(--color-gray-400);
+  }
+}
+
+.authLabel {
+  display: block;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-gray-700);
+  margin-bottom: var(--spacing-2);
+}
+
+.authMessage {
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+  margin-top: var(--spacing-2);
+  
+  // 에러 메시지
+  &[data-status="error"] {
+    color: var(--color-error);
+    background: rgba(239, 68, 68, 0.1);
+    padding: var(--spacing-2) var(--spacing-3);
+    border-radius: var(--border-radius);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+  }
+  
+  // 성공 메시지
+  &[data-status="success"] {
+    color: var(--color-success);
+    background: rgba(34, 197, 94, 0.1);
+    padding: var(--spacing-2) var(--spacing-3);
+    border-radius: var(--border-radius);
+    border: 1px solid rgba(34, 197, 94, 0.2);
+  }
+  
+  // 정보 메시지
+  &[data-status="default"] {
+    color: var(--color-gray-600);
+  }
+}
+
+.authDivider {
+  position: relative;
+  text-align: center;
+  margin: var(--spacing-6) 0;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: var(--color-gray-200);
+  }
+  
+  span {
+    background: var(--color-white);
+    padding: 0 var(--spacing-4);
+    color: var(--color-gray-500);
+    font-size: var(--font-size-sm);
+  }
+}
+
+// Supabase Auth UI 전역 스타일 오버라이드
+:global {
+  .sbui-auth {
+    --sbui-default-space: var(--spacing-4);
+  }
+  
+  .sbui-auth-container {
+    gap: var(--spacing-4);
+  }
+  
+  .sbui-auth-divider {
+    margin: var(--spacing-6) 0;
+  }
+  
+  .sbui-auth-social-container {
+    gap: var(--spacing-3);
+  }
+}

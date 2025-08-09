@@ -66,13 +66,11 @@ wrap?: boolean
 gap: 'sm' | 'md' | 'lg'
 ```
 
-### 🧱 Widget Components
-
-#### Header (`@/widgets/Header`)
+#### Header (`@/shared/ui/Header`)
 - 네비게이션, 로고, 액션 버튼 포함
 - 반응형 메뉴 지원
 
-#### Footer (`@/widgets/Footer`)
+#### Footer (`@/shared/ui/Footer`)
 - 링크 섹션, 저작권 정보 포함
 - 반응형 레이아웃
 

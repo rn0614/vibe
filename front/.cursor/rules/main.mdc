@@ -81,8 +81,8 @@ export const UserCard: React.FC<UserCardProps> = ({ user, onClick }) => {
 
 ```scss
 // 모든 .module.scss 파일에서 필수 import
-@use '@/styles/variables' as *;
-@use '@/styles/mixins' as *;
+@use '@/shared/styles/variables' as *;
+@use '@/shared/styles/mixins' as *;
 
 .root {
   // 기존 CSS 변수 활용
@@ -113,7 +113,6 @@ export const UserCard: React.FC<UserCardProps> = ({ user, onClick }) => {
 import { Button } from '@/shared/ui';
 import { User } from '@/entities/user';
 import { LoginForm } from '@/features/auth';
-import { Header } from '@/widgets/Header';
 
 // ❌ 잘못된 import (상대 경로)
 import { Button } from '../../../shared/ui/Button';
@@ -168,8 +167,18 @@ interface ButtonProps {
 🤔 "사용자 프로필 편집 기능"을 추가한다면?
 
 1. entities/user → User 타입 확장
-2. features/user-profile-edit → 편집 폼 컴포넌트
+2. features/user-profile-edit → 편집 폼 컴포넌트  
 3. pages/ProfilePage → 기존 페이지에 편집 기능 통합
+```
+
+### 2. Hook 아키텍처 결정
+```
+🤔 "프로필 편집 기능"에 필요한 Hook은?
+
+1. useUserProfile (Core) → 사용자 데이터 관리 (Router 독립)
+2. useUserProfileActions (Action) → 수정 + 리다이렉트 (Router 의존)
+
+💡 Router 컨텍스트 필요 여부로 Core/Action 분리 결정
 ```
 
 ### 2. 타입 정의 (타입 우선 개발)
@@ -182,23 +191,69 @@ export interface UserUpdateDto {
 }
 ```
 
-### 3. 컴포넌트 구현
+### 3. Hook 구현 (Core + Action 패턴)
+```typescript
+// shared/hooks/useUserProfile.ts (Core Hook)
+export const useUserProfile = (userId: string) => {
+  const query = useQuery(['user', userId], () => fetchUser(userId));
+  const updateMutation = useMutation(updateUser);
+  
+  return {
+    user: query.data,
+    isLoading: query.isLoading,
+    updateProfile: updateMutation.mutate,
+    updateProfileAsync: updateMutation.mutateAsync, // await 가능
+  };
+};
+
+// shared/hooks/useUserProfileActions.ts (Action Hook)  
+export const useUserProfileActions = (userId: string) => {
+  const navigate = useNavigate();
+  const profile = useUserProfile(userId);
+  
+  const updateWithRedirect = async (data: UserUpdateDto, redirectTo = '/profile') => {
+    await profile.updateProfileAsync(data);
+    navigate(redirectTo, { replace: true });
+  };
+  
+  return { ...profile, updateWithRedirect };
+};
+```
+
+### 4. 컴포넌트 구현
 ```typescript
 // features/user-profile-edit/ui/ProfileEditForm.tsx
-import { User, UserUpdateDto } from '@/entities/user';
+import { useUserProfileActions } from '@/shared/hooks';
 import { Button, Input } from '@/shared/ui';
 
 interface ProfileEditFormProps {
-  user: User;
-  onSubmit: (data: UserUpdateDto) => void;
-  isLoading?: boolean;
+  userId: string;
 }
+
+export const ProfileEditForm: FC<ProfileEditFormProps> = ({ userId }) => {
+  const { user, updateWithRedirect, isLoading } = useUserProfileActions(userId);
+  
+  const handleSubmit = (data: UserUpdateDto) => {
+    updateWithRedirect(data, '/profile');
+  };
+};
 ```
 
-### 4. 기존 코드와의 통합
+### 5. 기존 코드와의 통합
 ```typescript
 // pages/ProfilePage에서 활용
 import { ProfileEditForm } from '@/features/user-profile-edit';
+import { useAuth } from '@/shared/hooks'; // Core Hook (상태만 필요)
+
+export const ProfilePage = () => {
+  const { user } = useAuth(); // Router 독립적
+  
+  return (
+    <div>
+      <ProfileEditForm userId={user?.id} />
+    </div>
+  );
+};
 ```
 
 ## 📋 코드 리뷰 체크리스트
@@ -207,6 +262,12 @@ import { ProfileEditForm } from '@/features/user-profile-edit';
 - [ ] 올바른 FSD 레이어에 배치되었는가?
 - [ ] 의존성 방향이 올바른가? (하위→상위만 허용)
 - [ ] 파일/폴더 명명이 기존 컨벤션과 일치하는가?
+
+### Hook 아키텍처 검증
+- [ ] Router 컨텍스트 의존성이 올바르게 분리되었는가?
+- [ ] Core Hook과 Action Hook이 적절히 분리되었는가?
+- [ ] 상태 관리 도구 선택이 적절한가? (TanStack Query vs Zustand vs React State)
+- [ ] AuthInitializer에서 사용되는 Hook이 Router 독립적인가?
 
 ### 코드 품질
 - [ ] TypeScript 타입이 명시적으로 정의되었는가?

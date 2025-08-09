@@ -1,6 +1,6 @@
 import { Layout, Container, Flex, Button } from '@/shared/ui';
-import { Header } from '@/widgets/Header';
-import { Footer } from '@/widgets/Footer';
+import { Header } from '@/shared/ui/Header';
+import { Footer } from '@/shared/ui/Footer';
 import { Link } from 'react-router-dom';
 import styles from './AboutPage.module.scss';
 

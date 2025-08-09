@@ -1,0 +1,256 @@
+# React Hooks 개발 가이드
+
+> Router 컨텍스트와 상태 관리의 올바른 분리 패턴
+
+## 🎯 핵심 원칙
+
+### 1. Router 컨텍스트 분리 원칙
+
+#### ❌ 피해야 할 패턴
+```typescript
+// useNavigate를 Core Hook에서 사용 (위험!)
+export const useAuth = () => {
+  const navigate = useNavigate(); // Router 컨텍스트 의존
+  
+  const signOut = useMutation({
+    onSuccess: () => navigate('/') // Router 밖에서 호출 시 에러
+  });
+};
+```
+
+#### ✅ 올바른 패턴
+```typescript
+// Core Hook - Router 독립적
+export const useAuth = () => {
+  const signOut = useMutation({
+    mutationFn: () => authApi.signOut()
+    // navigation 로직 없음
+  });
+  
+  return {
+    signOut: signOut.mutate,
+    signOutAsync: signOut.mutateAsync // await 가능
+  };
+};
+
+// Action Hook - Router 의존적
+export const useAuthActions = () => {
+  const navigate = useNavigate();
+  const auth = useAuth();
+  
+  const signOutWithRedirect = async (redirectTo = '/') => {
+    await auth.signOutAsync();
+    navigate(redirectTo, { replace: true });
+  };
+  
+  return { ...auth, signOutWithRedirect };
+};
+```
+
+### 2. Hook 레이어 구조
+
+```
+🔥 Core Hooks (Router 독립적)
+├── useAuth          # 순수 인증 상태 + 액션
+├── useAppStore      # 클라이언트 상태
+├── useApi           # 일반적인 API 호출
+└── useSupabaseQuery # Supabase 데이터 페칭
+
+🔥 Action Hooks (Router 의존적)
+├── useAuthActions   # navigation 포함 인증 액션
+├── useFormActions   # 폼 제출 + 리다이렉트
+└── usePageActions   # 페이지 전환 로직
+```
+
+## 📋 개발 가이드라인
+
+### Hook 생성 시 결정 사항
+
+#### 1. Router 컨텍스트 필요 여부
+```typescript
+// ✅ Router 독립적 Hook
+export const useData = () => {
+  const query = useQuery(['data'], fetchData);
+  const mutation = useMutation(updateData);
+  
+  return {
+    data: query.data,
+    updateData: mutation.mutate,
+    updateDataAsync: mutation.mutateAsync
+  };
+};
+
+// ✅ Router 의존적 Action Hook  
+export const useDataActions = () => {
+  const navigate = useNavigate();
+  const data = useData();
+  
+  const updateWithRedirect = async (newData, redirectTo) => {
+    await data.updateDataAsync(newData);
+    navigate(redirectTo);
+  };
+  
+  return { ...data, updateWithRedirect };
+};
+```
+
+#### 2. 상태 관리 도구 선택
+```typescript
+// TanStack Query: 서버 상태
+const { user, posts } = useQuery(['posts'], fetchPosts);
+
+// Zustand: 클라이언트 상태
+const { theme, sidebarOpen } = useAppStore();
+
+// React State: 컴포넌트 로컬 상태
+const [email, setEmail] = useState('');
+```
+
+### 컴포넌트별 Hook 사용법
+
+#### AuthInitializer (Router 밖)
+```typescript
+export const AuthInitializer = ({ children }) => {
+  useAuth(); // ✅ Core Hook만 사용
+  return <>{children}</>;
+};
+```
+
+#### Header/Navigation (Router 안)
+```typescript
+export const Header = () => {
+  const { user, signOutWithRedirect } = useAuthActions(); // ✅ Action Hook
+  
+  return (
+    <button onClick={() => signOutWithRedirect('/')}>
+      로그아웃
+    </button>
+  );
+};
+```
+
+#### Data Display 컴포넌트
+```typescript
+export const UserProfile = () => {
+  const { user, isLoading } = useAuth(); // ✅ Core Hook (상태만 필요)
+  
+  if (isLoading) return <Spinner />;
+  return <div>{user?.name}</div>;
+};
+```
+
+## 🔄 TanStack Query 패턴
+
+### 1. 기본 Query 패턴
+```typescript
+export const usePosts = (categoryId?: string) => {
+  return useQuery({
+    queryKey: ['posts', categoryId],
+    queryFn: () => fetchPosts(categoryId),
+    staleTime: 5 * 60 * 1000, // 5분
+    gcTime: 10 * 60 * 1000,   // 10분
+    enabled: !!categoryId,     // 조건부 실행
+  });
+};
+```
+
+### 2. Mutation 패턴
+```typescript
+export const useCreatePost = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (data: CreatePostData) => postsApi.create(data),
+    onSuccess: (newPost) => {
+      // 관련 쿼리 무효화
+      queryClient.invalidateQueries(['posts']);
+      queryClient.invalidateQueries(['posts', newPost.categoryId]);
+      
+      // 또는 Optimistic Update
+      queryClient.setQueryData(['posts'], (oldData) => 
+        oldData ? [...oldData, newPost] : [newPost]
+      );
+    },
+    onError: (error) => {
+      console.error('포스트 생성 실패:', error);
+    }
+  });
+};
+```
+
+### 3. 무한 스크롤 패턴
+```typescript
+export const useInfinitePosts = () => {
+  return useInfiniteQuery({
+    queryKey: ['posts', 'infinite'],
+    queryFn: ({ pageParam = 1 }) => fetchPosts({ page: pageParam }),
+    getNextPageParam: (lastPage, pages) => 
+      lastPage.hasMore ? pages.length + 1 : undefined,
+    initialPageParam: 1,
+  });
+};
+```
+
+## 🛡️ 에러 처리 패턴
+
+### 1. 글로벌 에러 처리
+```typescript
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: (failureCount, error: any) => {
+        if (error?.status === 401 || error?.status === 403) {
+          return false; // 인증 에러는 재시도 안 함
+        }
+        return failureCount < 2;
+      },
+      onError: (error: any) => {
+        if (error?.status === 401) {
+          // 인증 만료 시 로그인 페이지로
+          window.location.href = '/login';
+        }
+      }
+    }
+  }
+});
+```
+
+### 2. 컴포넌트 레벨 에러 처리
+```typescript
+export const PostList = () => {
+  const { data: posts, isLoading, error } = usePosts();
+  
+  if (isLoading) return <Spinner />;
+  if (error) return <ErrorMessage error={error} />;
+  if (!posts?.length) return <EmptyState />;
+  
+  return <div>{posts.map(post => <PostItem key={post.id} post={post} />)}</div>;
+};
+```
+
+## 🎯 체크리스트
+
+### ✅ Hook 생성 시
+- [ ] Router 컨텍스트 의존성 확인
+- [ ] 적절한 레이어 (Core vs Action) 선택
+- [ ] 상태 관리 도구 적절히 선택
+- [ ] 에러 처리 포함
+- [ ] TypeScript 타입 정의
+
+### ✅ Hook 사용 시
+- [ ] Router 컨텍스트 내부인지 확인
+- [ ] 필요한 기능에 맞는 Hook 선택
+- [ ] 로딩/에러 상태 적절히 처리
+- [ ] 불필요한 리렌더링 방지
+
+### ✅ TanStack Query 사용 시
+- [ ] 적절한 queryKey 설정
+- [ ] staleTime/gcTime 설정
+- [ ] 관련 쿼리 무효화 처리
+- [ ] Optimistic Update 고려
+
+## 🔗 관련 문서
+
+- [HOOKS_ARCHITECTURE_GUIDE.md](../docs/HOOKS_ARCHITECTURE_GUIDE.md)
+- [AUTH_UNIFIED_ARCHITECTURE.md](../docs/AUTH_UNIFIED_ARCHITECTURE.md)
+- [DEVELOPMENT_PATTERNS.md](../docs/DEVELOPMENT_PATTERNS.md)

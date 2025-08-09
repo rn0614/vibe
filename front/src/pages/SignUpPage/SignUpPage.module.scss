@@ -1,0 +1,64 @@
+@use '@/shared/styles/variables' as *;
+@use '@/shared/styles/mixins' as *;
+
+.main {
+  flex: 1;
+  padding: var(--spacing-12) 0;
+  min-height: calc(100vh - 200px); // 헤더와 푸터 공간 확보
+  background: linear-gradient(
+    135deg, 
+    var(--color-primary-light) 0%, 
+    var(--color-white) 50%,
+    var(--color-gray-50) 100%
+  );
+  
+  @include mobile {
+    padding: var(--spacing-8) 0;
+    min-height: calc(100vh - 150px);
+  }
+}
+
+.content {
+  min-height: 600px; // 회원가입 폼이 더 길어서 높이 증가
+  
+  @include mobile {
+    min-height: 500px;
+  }
+}
+
+.header {
+  text-align: center;
+  margin-bottom: var(--spacing-8);
+}
+
+.title {
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-gray-900);
+  margin-bottom: var(--spacing-2);
+}
+
+.subtitle {
+  font-size: var(--font-size-base);
+  color: var(--color-gray-600);
+  margin: 0;
+}
+
+.authForm {
+  width: 100%;
+  max-width: 400px;
+  
+  // 살짝 올라오는 애니메이션
+  animation: slideUp 0.6s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

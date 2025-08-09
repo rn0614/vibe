@@ -53,11 +53,14 @@ declare module '*.gif' {
 
 // Vite 환경 변수 타입 확장
 interface ImportMetaEnv {
-  readonly VITE_API_URL: string;
-  readonly VITE_APP_TITLE: string;
-  readonly VITE_APP_VERSION: string;
-  readonly VITE_APP_ENVIRONMENT: 'development' | 'production' | 'test';
-  // 추가 환경 변수들을 여기에 정의
+  readonly VITE_SUPABASE_URL: string;
+  readonly VITE_SUPABASE_ANON_KEY: string;
+  readonly VITE_GOOGLE_CLIENT_ID: string;
+  readonly VITE_APP_ENV?: 'development' | 'production' | 'test';
+  readonly VITE_API_URL?: string;
+  readonly VITE_APP_TITLE?: string;
+  readonly VITE_APP_VERSION?: string;
+  readonly VITE_APP_ENVIRONMENT?: 'development' | 'production' | 'test';
 }
 
 interface ImportMeta {

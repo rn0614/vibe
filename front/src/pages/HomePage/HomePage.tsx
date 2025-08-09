@@ -1,9 +1,10 @@
 import { Layout, Container, Flex, Button } from '@/shared/ui';
-import { Header } from '@/widgets/Header';
-import { Footer } from '@/widgets/Footer';
+import { Header } from '@/shared/ui/Header';
+import { Footer } from '@/shared/ui/Footer';
 import styles from './HomePage.module.scss';
 
 export const HomePage: React.FC = () => {
+
   return (
     <Layout>
       <Header />
