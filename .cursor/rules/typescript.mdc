@@ -1,0 +1,329 @@
+---
+globs: ["**/*.ts", "**/*.tsx"]
+alwaysApply: false
+---
+# TypeScript 스타일 가이드
+
+> 기존 타입 시스템을 확장하고 일관성 있는 타입 스타일을 유지하기 위한 가이드
+
+## 기본 원칙
+1. **타입 안정성 우선**: `any` 절대 사용 금지
+2. **기존 타입 활용**: 새로운 타입보다 기존 타입 확장/조합 우선
+3. **일관된 네이밍**: 프로젝트의 기존 네이밍 컨벤션 준수
+4. **적절한 배치**: FSD 레이어에 맞는 타입 위치 선택
+
+## 📍 현재 타입 구조 파악 및 확장
+
+### 기존 타입 위치 이해하기
+
+```typescript
+// shared/types/ - 프로젝트 전반에서 사용되는 공통 타입
+// entities/*/types/ - 특정 도메인 엔티티 타입
+// features/*/types/ - 특정 기능 관련 타입
+// widgets/*/types/ - 위젯 컴포넌트 타입
+// pages/*/types/ - 페이지별 타입
+```
+
+### 새 타입 추가 전 확인사항
+
+1. **기존 타입 검색**: 비슷한 타입이 이미 있는지 확인
+2. **확장 가능성**: 기존 타입을 확장할 수 있는지 검토
+3. **적절한 위치**: FSD 레이어에 맞는 위치인지 확인
+
+## 🔧 컴포넌트 Props 타이핑 패턴
+
+### 기존 패턴 따르기
+
+```typescript
+// ✅ 프로젝트의 기존 패턴
+interface ComponentNameProps {
+  // 필수 props
+  title: string;
+  data: SomeType;
+  
+  // 선택적 props
+  variant?: 'primary' | 'secondary' | 'danger';
+  size?: 'sm' | 'md' | 'lg';
+  className?: string;
+  
+  // 이벤트 핸들러
+  onClick?: (event: React.MouseEvent<HTMLButtonElement>) => void;
+  onSubmit?: (data: FormData) => void;
+}
+```
+
+### HTML 속성 확장 시 패턴
+
+```typescript
+// ✅ 기존 프로젝트 패턴 준수
+interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+  label?: string;
+  error?: string;
+  helperText?: string;
+}
+
+interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
+  size?: 'sm' | 'md' | 'lg';
+  loading?: boolean;
+  startIcon?: React.ReactNode;
+  endIcon?: React.ReactNode;
+}
+```
+
+## 🏗️ 기존 타입 확장 및 조합
+
+### Utility Types를 활용한 기존 타입 활용
+
+```typescript
+// 기존 User 타입이 있다면
+interface User {
+  id: number;
+  name: string;
+  email: string;
+  avatar?: string;
+  createdAt: string;
+}
+
+// ✅ 기존 타입을 활용한 새 타입들
+type PublicUser = Omit<User, 'email'>; // 공개 프로필용
+type UserUpdateData = Partial<Pick<User, 'name' | 'avatar'>>; // 업데이트용
+type CreateUserData = Omit<User, 'id' | 'createdAt'>; // 생성용
+```
+
+### 기존 API 응답 패턴 활용
+
+```typescript
+// 프로젝트에 기존 ApiResponse가 있다면 활용
+interface ApiResponse<T> {
+  data: T;
+  status: number;
+  message?: string;
+}
+
+// ✅ 기존 패턴을 따른 새 API 타입들
+type UserListResponse = ApiResponse<User[]>;
+type UserDetailResponse = ApiResponse<User>;
+type UserCreateResponse = ApiResponse<{ id: number }>;
+```
+
+## 🔄 인터페이스 vs 타입 선택 기준
+
+### 프로젝트 일관성 유지
+
+```typescript
+// ✅ 객체 구조 정의 시 interface 사용 (기존 패턴)
+interface UserCardProps {
+  user: User;
+  showActions?: boolean;
+}
+
+interface ApiError {
+  message: string;
+  code: string;
+  field?: string;
+}
+
+// ✅ 유니온, 조합, 원시값 시 type 사용
+type LoadingState = 'idle' | 'loading' | 'success' | 'error';
+type Theme = 'light' | 'dark';
+type UserRole = 'admin' | 'user' | 'guest';
+```
+
+## 📦 제네릭 활용 패턴
+
+### 재사용 가능한 제네릭 컴포넌트 타이핑
+
+```typescript
+// ✅ 의미 있는 제네릭 이름 사용
+interface DataTableProps<TData, TKey extends keyof TData> {
+  data: TData[];
+  columns: Array<{
+    key: TKey;
+    title: string;
+    render?: (value: TData[TKey], item: TData) => React.ReactNode;
+  }>;
+  keyExtractor: (item: TData) => string | number;
+}
+
+// ✅ 제약 조건으로 타입 안정성 향상
+interface Repository<TEntity extends { id: number }> {
+  findById(id: number): Promise<TEntity | null>;
+  create(data: Omit<TEntity, 'id'>): Promise<TEntity>;
+  update(id: number, data: Partial<TEntity>): Promise<TEntity>;
+  delete(id: number): Promise<void>;
+}
+```
+
+## 🎨 스타일 관련 타이핑
+
+### CSS Modules와 스타일 Props
+
+```typescript
+// ✅ 스타일 관련 props의 일관된 패턴
+interface StyledComponentProps {
+  className?: string;
+  variant?: 'primary' | 'secondary' | 'danger';
+  size?: 'sm' | 'md' | 'lg';
+}
+
+// ✅ CSS-in-JS나 styled-components 사용 시
+interface ThemeProps {
+  theme?: 'light' | 'dark';
+  color?: 'primary' | 'secondary' | 'success' | 'error' | 'warning';
+}
+```
+
+## 📡 API 및 상태 관리 타이핑
+
+### 비동기 상태 타이핑 패턴
+
+```typescript
+// ✅ 일관된 비동기 상태 패턴
+interface AsyncState<T> {
+  data: T | null;
+  loading: boolean;
+  error: string | null;
+}
+
+// ✅ API 함수 타이핑
+type ApiFunction<TRequest, TResponse> = (
+  request: TRequest
+) => Promise<ApiResponse<TResponse>>;
+
+// 사용 예시
+type GetUserFunction = ApiFunction<{ id: number }, User>;
+type CreateUserFunction = ApiFunction<CreateUserData, User>;
+```
+
+### Form 데이터 타이핑
+
+```typescript
+// ✅ 폼 상태와 검증 에러 타이핑
+interface FormState<T> {
+  values: T;
+  errors: Partial<Record<keyof T, string>>;
+  touched: Partial<Record<keyof T, boolean>>;
+  isSubmitting: boolean;
+}
+
+// 사용 예시
+type LoginFormState = FormState<{
+  email: string;
+  password: string;
+}>;
+```
+
+## 🔍 타입 가드 및 유틸리티
+
+### 런타임 타입 체킹
+
+```typescript
+// ✅ 타입 가드 함수
+function isUser(obj: unknown): obj is User {
+  return (
+    typeof obj === 'object' &&
+    obj !== null &&
+    'id' in obj &&
+    'name' in obj &&
+    'email' in obj
+  );
+}
+
+// ✅ 옵셔널 체이닝과 함께 사용
+function getUserDisplayName(user: User | null | undefined): string {
+  return user?.name ?? '알 수 없는 사용자';
+}
+```
+
+## 📝 기존 타입 확장 시 Best Practices
+
+### 1. 기존 인터페이스 확장
+
+```typescript
+// 기존 ButtonProps가 있다면
+interface ButtonProps {
+  children: React.ReactNode;
+  variant?: 'primary' | 'secondary';
+  onClick?: () => void;
+}
+
+// ✅ 확장해서 새로운 버튼 타입 생성
+interface IconButtonProps extends ButtonProps {
+  icon: React.ReactNode;
+  iconPosition?: 'left' | 'right';
+}
+
+interface SubmitButtonProps extends ButtonProps {
+  loading?: boolean;
+  loadingText?: string;
+}
+```
+
+### 2. 조건부 타입으로 유연성 제공
+
+```typescript
+// ✅ 조건부 타입으로 다양한 케이스 처리
+type ModalProps<T extends boolean = false> = {
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+} & (T extends true 
+  ? { footer: React.ReactNode } 
+  : { footer?: React.ReactNode }
+);
+```
+
+## 🔄 리팩토링 시 타입 업데이트
+
+### 단계별 타입 마이그레이션
+
+```typescript
+// 1단계: 기존 타입에 새 속성 추가 (선택적으로)
+interface User {
+  id: number;
+  name: string;
+  email: string;
+  avatar?: string; // 새로 추가
+}
+
+// 2단계: 새 타입 생성으로 점진적 마이그레이션
+interface UserV2 extends User {
+  preferences: UserPreferences;
+  settings: UserSettings;
+}
+
+// 3단계: 타입 별칭으로 호환성 유지
+type CurrentUser = UserV2;
+```
+
+## 📋 타입 코드 리뷰 체크리스트
+
+### 필수 확인사항
+
+- [ ] `any` 타입을 사용하지 않았는가?
+- [ ] 기존 타입을 재사용하거나 확장했는가?
+- [ ] Props 인터페이스 네이밍이 일관적인가? (`ComponentNameProps`)
+- [ ] 선택적 속성이 적절히 표시되었는가? (`?`)
+- [ ] 제네릭 타입 매개변수 이름이 의미적인가?
+
+### 가독성 확인사항
+
+- [ ] 복잡한 유니온 타입이 적절히 분리되었는가?
+- [ ] 타입 주석이 필요한 곳에 추가되었는가?
+- [ ] 인터페이스와 타입의 선택이 적절한가?
+
+### 성능 확인사항
+
+- [ ] 과도하게 복잡한 조건부 타입을 피했는가?
+- [ ] 불필요한 제네릭 제약을 피했는가?
+
+## 💡 타입 작성 팁
+
+1. **기존 패턴 우선**: 새로운 방식보다 프로젝트 기존 패턴 따르기
+2. **단계적 확장**: 큰 변경보다 작은 단위로 점진적 개선
+3. **명시적 타이핑**: 추론 가능해도 중요한 곳은 명시적으로 타입 지정
+4. **문서화**: 복잡한 타입에는 주석으로 설명 추가
+5. **테스트**: 타입 변경 시 타입 레벨에서의 테스트 코드 작성
+
+이 가이드를 통해 Vibe 프로젝트의 기존 타입 시스템을 일관성 있게 확장하고 유지보수할 수 있습니다.

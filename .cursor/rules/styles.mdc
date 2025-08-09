@@ -1,0 +1,316 @@
+---
+globs: ["**/*.scss", "**/*.css"]
+alwaysApply: false
+---
+
+# Vibe 프로젝트 스타일 가이드
+
+> 기존 디자인 시스템을 활용하여 일관성 있는 스타일을 유지하기 위한 가이드
+
+## 🎨 기존 디자인 토큰 활용 (필수)
+
+### CSS 변수 우선 사용
+
+```scss
+// ✅ 항상 기존 CSS 변수 활용
+.component {
+  // 색상
+  color: var(--color-gray-900);
+  background: var(--color-white);
+  border: 1px solid var(--color-gray-200);
+  
+  // 간격
+  padding: var(--spacing-4);
+  margin: var(--spacing-2);
+  gap: var(--spacing-3);
+  
+  // 타이포그래피
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+  
+  // Border radius
+  border-radius: var(--border-radius);
+  
+  // 그림자
+  box-shadow: var(--shadow);
+}
+
+// ❌ 하드코딩 금지
+.component {
+  color: #374151;        // 대신 var(--color-gray-700) 사용
+  padding: 16px;         // 대신 var(--spacing-4) 사용
+  font-size: 14px;       // 대신 var(--font-size-sm) 사용
+}
+```
+
+### 색상 시스템
+
+```scss
+// ✅ 의미적 색상 사용
+.success { color: var(--color-success); }
+.error { color: var(--color-error); }
+.warning { color: var(--color-warning); }
+.primary { color: var(--color-primary); }
+
+// ✅ 그레이 스케일 활용
+.text-primary { color: var(--color-gray-900); }
+.text-secondary { color: var(--color-gray-600); }
+.text-muted { color: var(--color-gray-400); }
+.border { border-color: var(--color-gray-200); }
+.background { background: var(--color-gray-50); }
+```
+
+## 🔧 기존 믹스인 활용 (필수)
+
+### 레이아웃 믹스인
+
+```scss
+// ✅ 기존 믹스인 재사용
+.container {
+  @include flex-center;          // 중앙 정렬
+  @include flex-between;         // 양쪽 정렬
+  @include flex-column;          // 세로 배치
+  @include flex-column-center;   // 세로 중앙 정렬
+}
+
+.card {
+  @include card;                 // 기본 카드 스타일
+  @include card-hover;           // 호버 효과가 있는 카드
+}
+
+.button {
+  @include button-base;          // 기본 버튼 스타일
+  @include button-reset;         // 버튼 리셋
+}
+
+.input {
+  @include input-base;           // 기본 인풋 스타일
+}
+```
+
+### 반응형 믹스인
+
+```scss
+// ✅ 기존 반응형 믹스인 활용
+.component {
+  padding: var(--spacing-6);
+  
+  @include tablet {
+    padding: var(--spacing-4);
+  }
+  
+  @include mobile {
+    padding: var(--spacing-3);
+  }
+}
+
+// ✅ 다양한 반응형 옵션
+.responsive-component {
+  @include mobile-down {    // ~639px
+    font-size: var(--font-size-sm);
+  }
+  
+  @include tablet-up {      // 768px~
+    display: flex;
+  }
+  
+  @include desktop-up {     // 1024px~
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+```
+
+## 📝 컴포넌트 스타일 패턴
+
+### 1. 루트 클래스 패턴
+
+```scss
+// ✅ 항상 .root 클래스로 시작
+.root {
+  // 컨테이너 스타일
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+// 자식 요소들
+.header { /* ... */ }
+.content { /* ... */ }
+.footer { /* ... */ }
+```
+
+### 2. Variant 스타일 패턴
+
+```scss
+// ✅ 기존 패턴 따르기
+.root {
+  // 기본 스타일
+}
+
+// Size variants
+.sm { /* small size */ }
+.md { /* medium size */ }
+.lg { /* large size */ }
+
+// Color variants  
+.primary { /* primary color */ }
+.secondary { /* secondary color */ }
+.danger { /* danger color */ }
+
+// State variants
+.disabled { /* disabled state */ }
+.loading { /* loading state */ }
+.active { /* active state */ }
+```
+
+### 3. 상태 및 모디파이어
+
+```scss
+// ✅ 상태 클래스 패턴
+.root {
+  transition: all 0.2s ease-in-out;
+  
+  &:hover {
+    transform: translateY(-2px);
+  }
+  
+  &:active {
+    transform: translateY(0);
+  }
+  
+  &:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+  
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+// ✅ 모디파이어 클래스
+.fullWidth { width: 100%; }
+.rounded { border-radius: var(--border-radius-lg); }
+.elevated { box-shadow: var(--shadow-lg); }
+```
+
+## 🎯 애니메이션 및 트랜지션
+
+### 일관된 애니메이션 값
+
+```scss
+// ✅ 일관된 duration과 easing
+.animated {
+  transition: all 0.2s ease-in-out;        // 기본
+  transition: transform 0.3s ease-out;     // 움직임
+  transition: opacity 0.15s ease-in;       // 페이드
+}
+
+// ✅ 키프레임 애니메이션
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.fadeIn { animation: fadeIn 0.3s ease-out; }
+.spinning { animation: spin 1s linear infinite; }
+```
+
+## 📱 반응형 디자인 패턴
+
+### 모바일 퍼스트 접근
+
+```scss
+// ✅ 모바일 퍼스트로 작성
+.component {
+  // 모바일 스타일 (기본)
+  padding: var(--spacing-3);
+  font-size: var(--font-size-sm);
+  
+  @include tablet-up {
+    // 태블릿 이상
+    padding: var(--spacing-4);
+    font-size: var(--font-size-base);
+  }
+  
+  @include desktop-up {
+    // 데스크톱 이상
+    padding: var(--spacing-6);
+    font-size: var(--font-size-lg);
+  }
+}
+```
+
+### 그리드 반응형 패턴
+
+```scss
+// ✅ 반응형 그리드
+.grid {
+  display: grid;
+  gap: var(--spacing-4);
+  grid-template-columns: 1fr;           // 모바일: 1열
+  
+  @include tablet-up {
+    grid-template-columns: repeat(2, 1fr);  // 태블릿: 2열
+  }
+  
+  @include desktop-up {
+    grid-template-columns: repeat(3, 1fr);  // 데스크톱: 3열
+  }
+}
+```
+
+## 🔍 스타일 디버깅 및 최적화
+
+### 성능 고려사항
+
+```scss
+// ✅ 성능 최적화
+.optimized {
+  // GPU 가속 활용
+  transform: translateZ(0);
+  will-change: transform;
+  
+  // 불필요한 리페인트 방지
+  backface-visibility: hidden;
+  
+  // 효율적인 셀렉터 사용
+  > .direct-child { /* 직접 자식만 */ }
+}
+
+// ❌ 성능에 좋지 않은 패턴
+.inefficient {
+  * { margin: 0; }              // 전역 셀렉터
+  .parent .child .grandchild {} // 깊은 중첩
+  [class*="btn"] {}             // 속성 와일드카드
+}
+```
+
+## 📋 스타일 체크리스트
+
+### 작성 전 확인사항
+- [ ] 기존 CSS 변수를 사용했는가?
+- [ ] 기존 믹스인을 활용했는가?
+- [ ] 하드코딩된 값이 없는가?
+- [ ] 반응형이 고려되었는가?
+
+### 작성 후 확인사항
+- [ ] 다크모드 대응이 되었는가?
+- [ ] 접근성이 고려되었는가?
+- [ ] 성능 최적화가 되었는가?
+- [ ] 기존 디자인 시스템과 일관성이 있는가?
+
+## 💡 스타일 작성 팁
+
+1. **변수 우선**: 새로운 값보다 기존 CSS 변수 활용
+2. **믹스인 재사용**: 공통 패턴은 믹스인으로 해결
+3. **일관된 네이밍**: 기존 클래스명 패턴 따르기
+4. **점진적 확장**: 큰 변경보다 작은 단위로 개선
+5. **문서화**: 복잡한 스타일에는 주석 추가
+
+이 가이드를 통해 Vibe 프로젝트의 일관된 스타일을 유지하며 효율적으로 개발할 수 있습니다.

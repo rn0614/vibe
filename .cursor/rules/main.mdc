@@ -1,0 +1,274 @@
+---
+description: Vibe 프로젝트 FSD 아키텍처 유지보수 및 개발 가이드
+globs:
+alwaysApply: true
+---
+
+# Vibe 프로젝트 개발 가이드
+
+> 기존 FSD 아키텍처를 유지하며 새로운 기능을 추가하고 코드를 일관성 있게 유지보수하기 위한 가이드
+
+## 🏗️ 현재 프로젝트 구조 (유지 필수)
+
+```
+front/src/
+├── app/           # 앱 초기화, 전역 설정, 라우팅
+├── pages/         # 페이지 컴포넌트 (라우트 레벨)
+├── widgets/       # 독립적인 UI 블록 (Header, Footer 등)
+├── features/      # 사용자 상호작용, 비즈니스 로직
+├── entities/      # 비즈니스 엔티티
+├── shared/        # 공유 코드 (UI 컴포넌트, 유틸리티, API, Types)
+└── styles/        # 전역 스타일, 변수, 믹스인
+```
+
+## 🧩 새 컴포넌트 추가 시 레이어 선택 가이드
+
+### 질문 기반 레이어 결정
+
+**1️⃣ 이 컴포넌트가 어디에 속하는가?**
+- 🔄 **여러 곳에서 재사용**됨 → `shared/ui`
+- 🏢 **특정 비즈니스 엔티티**와 관련 → `entities/*/ui`
+- ⚡ **특정 기능**에서만 사용 → `features/*/ui`
+- 🧱 **복합적인 UI 블록** → `widgets`
+- 📄 **페이지 전체** → `pages`
+
+**2️⃣ 의존성 확인 (FSD 규칙)**
+```
+pages → widgets → features → entities → shared
+```
+- 하위 레이어는 상위 레이어를 참조할 수 없음
+- 동일 레이어 간 참조 금지
+
+## 📂 필수 파일 구조 템플릿
+
+### 모든 컴포넌트는 동일한 구조를 유지
+
+```
+ComponentName/
+├── index.ts                 # 🔗 Public API (필수)
+├── ComponentName.tsx        # ⚛️ 컴포넌트 로직 (필수)
+├── ComponentName.module.scss # 🎨 스타일 (필수)
+└── types.ts                 # 📝 타입 정의 (선택적)
+```
+
+**✅ 올바른 예시:**
+```typescript
+// index.ts
+export { UserCard } from './UserCard';
+export type { UserCardProps } from './UserCard';
+
+// UserCard.tsx
+import styles from './UserCard.module.scss';
+
+interface UserCardProps {
+  user: User;
+  onClick?: () => void;
+}
+
+export const UserCard: React.FC<UserCardProps> = ({ user, onClick }) => {
+  return (
+    <div className={styles.root} onClick={onClick}>
+      <h3 className={styles.name}>{user.name}</h3>
+      <p className={styles.email}>{user.email}</p>
+    </div>
+  );
+};
+```
+
+## 🎨 스타일링 일관성 유지
+
+### 기존 디자인 시스템 활용
+
+```scss
+// 모든 .module.scss 파일에서 필수 import
+@use '@/styles/variables' as *;
+@use '@/styles/mixins' as *;
+
+.root {
+  // 기존 CSS 변수 활용
+  padding: var(--spacing-4);
+  background: var(--color-white);
+  border-radius: var(--border-radius);
+  
+  // 기존 믹스인 활용
+  @include card;
+  @include mobile {
+    padding: var(--spacing-3);
+  }
+}
+```
+
+### 새로운 스타일 추가 시 우선순위
+
+1. **기존 CSS 변수** 재사용 시도
+2. **기존 믹스인** 재사용 시도  
+3. 새로운 것이 필요하면 `styles/` 폴더에 추가
+
+## 🔗 Import 규칙 준수
+
+### Path Alias 사용 필수
+
+```typescript
+// ✅ 올바른 import
+import { Button } from '@/shared/ui';
+import { User } from '@/entities/user';
+import { LoginForm } from '@/features/auth';
+import { Header } from '@/widgets/Header';
+
+// ❌ 잘못된 import (상대 경로)
+import { Button } from '../../../shared/ui/Button';
+```
+
+### FSD 레이어 순서 맞춰 import
+
+```typescript
+// 1. React 및 라이브러리
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
+
+// 2. 상위 레이어부터 하위 레이어 순서
+import { Layout } from '@/shared/ui';
+import { User } from '@/entities/user';
+
+// 3. 현재 레이어
+import styles from './ComponentName.module.scss';
+```
+
+## 🧪 기존 컴포넌트 수정 시 가이드
+
+### 수정 전 확인사항
+
+1. **Props 인터페이스 변경** → 모든 사용처 확인
+2. **CSS 클래스명 변경** → 다른 컴포넌트 영향도 확인
+3. **export 변경** → import하는 모든 파일 확인
+
+### Breaking Change 최소화
+
+```typescript
+// ✅ 좋은 방법: 기존 props 유지하며 새 props 추가
+interface ButtonProps {
+  children: ReactNode;
+  variant?: 'primary' | 'secondary' | 'danger'; // 기존
+  size?: 'sm' | 'md' | 'lg' | 'xl'; // 새로 추가 (xl만 추가)
+  // 새 기능
+  loading?: boolean;
+}
+
+// ❌ 나쁜 방법: 기존 props 타입 변경
+interface ButtonProps {
+  children: ReactNode;
+  variant?: 'solid' | 'outline'; // 기존 값들이 변경됨
+}
+```
+
+## 🚀 새 기능 추가 워크플로우
+
+### 1. 기능 분석 및 레이어 결정
+```
+🤔 "사용자 프로필 편집 기능"을 추가한다면?
+
+1. entities/user → User 타입 확장
+2. features/user-profile-edit → 편집 폼 컴포넌트
+3. pages/ProfilePage → 기존 페이지에 편집 기능 통합
+```
+
+### 2. 타입 정의 (타입 우선 개발)
+```typescript
+// entities/user/types/index.ts에 추가
+export interface UserUpdateDto {
+  name?: string;
+  email?: string;
+  avatar?: File;
+}
+```
+
+### 3. 컴포넌트 구현
+```typescript
+// features/user-profile-edit/ui/ProfileEditForm.tsx
+import { User, UserUpdateDto } from '@/entities/user';
+import { Button, Input } from '@/shared/ui';
+
+interface ProfileEditFormProps {
+  user: User;
+  onSubmit: (data: UserUpdateDto) => void;
+  isLoading?: boolean;
+}
+```
+
+### 4. 기존 코드와의 통합
+```typescript
+// pages/ProfilePage에서 활용
+import { ProfileEditForm } from '@/features/user-profile-edit';
+```
+
+## 📋 코드 리뷰 체크리스트
+
+### 구조 검증
+- [ ] 올바른 FSD 레이어에 배치되었는가?
+- [ ] 의존성 방향이 올바른가? (하위→상위만 허용)
+- [ ] 파일/폴더 명명이 기존 컨벤션과 일치하는가?
+
+### 코드 품질
+- [ ] TypeScript 타입이 명시적으로 정의되었는가?
+- [ ] Props 인터페이스가 명확한가?
+- [ ] CSS 변수와 믹스인을 활용했는가?
+- [ ] Import 순서가 올바른가?
+
+### 재사용성
+- [ ] 비슷한 기능의 기존 컴포넌트는 없는가?
+- [ ] 컴포넌트가 과도하게 특수화되지 않았는가?
+- [ ] Props가 유연하게 설계되었는가?
+
+### 성능
+- [ ] 불필요한 리렌더링이 없는가?
+- [ ] 큰 객체를 props로 전달하지 않는가?
+- [ ] 무거운 계산에 useMemo를 적용했는가?
+
+## 🔄 리팩토링 가이드
+
+### 컴포넌트 분리 기준
+```typescript
+// ❌ 너무 큰 컴포넌트
+const UserDashboard = () => {
+  // 사용자 정보 로직 (50줄)
+  // 통계 차트 로직 (30줄)  
+  // 최근 활동 로직 (40줄)
+  return (/* 복잡한 JSX */);
+};
+
+// ✅ 적절히 분리된 컴포넌트
+const UserDashboard = () => {
+  return (
+    <Layout>
+      <UserProfile user={user} />
+      <StatsChart data={stats} />
+      <RecentActivity activities={activities} />
+    </Layout>
+  );
+};
+```
+
+### 타입 중복 제거
+```typescript
+// 공통 타입은 shared/types로 이동
+// shared/types/ui.ts
+export interface BaseComponentProps {
+  className?: string;
+  testId?: string;
+}
+
+// 각 컴포넌트에서 확장
+interface ButtonProps extends BaseComponentProps {
+  variant?: 'primary' | 'secondary';
+}
+```
+
+## 💡 일관성 유지 팁
+
+1. **기존 컴포넌트 참고**: 비슷한 기능의 기존 컴포넌트를 먼저 찾아보기
+2. **CSS 변수 활용**: 하드코딩된 값 대신 CSS 변수 사용
+3. **타입 재사용**: 비슷한 타입이 있다면 확장해서 사용
+4. **네이밍 일관성**: 기존 파일들의 네이밍 패턴 따르기
+5. **작은 단위로 커밋**: 기능별로 작게 나누어 커밋하기
+
+이 가이드를 따라 기존 Vibe 프로젝트의 일관성을 유지하며 새로운 기능을 안전하게 추가할 수 있습니다.
