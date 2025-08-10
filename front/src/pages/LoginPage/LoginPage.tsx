@@ -1,11 +1,8 @@
-import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Layout, Container, Flex } from '@/shared/ui/Layout';
-import { AuthUI } from '@/features/auth';
-import { Header } from '@/shared/ui/Header';
-import { Footer } from '@/shared/ui/Footer';
-import { useAuth } from '@/shared/hooks/useAuth';
-import styles from './LoginPage.module.scss';
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { Container, Row, Col, Card } from "react-bootstrap";
+import { AuthUI } from "@/features/auth";
+import { useAuth } from "@/shared/hooks/useAuth";
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -14,7 +11,7 @@ export const LoginPage: React.FC = () => {
   // 이미 로그인된 사용자는 홈으로 리다이렉트
   useEffect(() => {
     if (user) {
-      navigate('/', { replace: true });
+      navigate("/", { replace: true });
     }
   }, [user, navigate]);
 
@@ -24,34 +21,21 @@ export const LoginPage: React.FC = () => {
   }
 
   return (
-    <Layout>
-      <Header />
-      
-      <main className={styles.main}>
-        <Container size="sm">
-          <Flex 
-            direction="column" 
-            align="center" 
-            justify="center" 
-            className={styles.content}
-          >
-            <div className={styles.header}>
-              <h1 className={styles.title}>로그인</h1>
-              <p className={styles.subtitle}>
-                계정에 로그인하여 서비스를 이용하세요
-              </p>
-            </div>
-            
-            <AuthUI 
-              view="sign_in"
-              className={styles.authForm}
-              redirectTo={window.location.origin}
-            />
-          </Flex>
-        </Container>
-      </main>
-      
-      <Footer />
-    </Layout>
+    <Container className="py-5">
+      <Row className="justify-content-center min-vh-75 align-items-center">
+        <Col xs={12} sm={8} md={6} lg={4}>
+          <Card className="shadow-sm border-0">
+            <Card.Body className="p-4">
+              <div className="text-center mb-4">
+                <h1 className="h3 fw-bold mb-3">로그인</h1>
+                <p className="text-body-secondary">계정에 로그인하여 서비스를 이용하세요</p>
+              </div>
+
+              <AuthUI view="sign_in" redirectTo={window.location.origin} />
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
+    </Container>
   );
 };

@@ -1,316 +1,421 @@
 ---
-globs: ["**/*.scss", "**/*.css"]
+globs: ["**/*.scss", "**/*.css", "**/*.ts","**/*.tsx"]
 alwaysApply: false
 ---
 
 # Vibe 프로젝트 스타일 가이드
 
-> 기존 디자인 시스템을 활용하여 일관성 있는 스타일을 유지하기 위한 가이드
+> React Bootstrap 기반 다크모드 지원 FSD 아키텍처 스타일링 가이드
 
-## 🎨 기존 디자인 토큰 활용 (필수)
+## 🏗️ 프로젝트 스타일링 구조
 
-### CSS 변수 우선 사용
+### 스타일링 우선순위
+1. **React Bootstrap 컴포넌트** (1순위)
+2. **Bootstrap 유틸리티 클래스** (2순위) 
+3. **SCSS Module** (특별한 경우만)
 
-```scss
-// ✅ 항상 기존 CSS 변수 활용
-.component {
-  // 색상
-  color: var(--color-gray-900);
-  background: var(--color-white);
-  border: 1px solid var(--color-gray-200);
-  
-  // 간격
-  padding: var(--spacing-4);
-  margin: var(--spacing-2);
-  gap: var(--spacing-3);
-  
-  // 타이포그래피
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-medium);
-  
-  // Border radius
-  border-radius: var(--border-radius);
-  
-  // 그림자
-  box-shadow: var(--shadow);
-}
+```typescript
+// ✅ 권장하는 스타일링 방법
+import { Container, Row, Col, Card, Button } from 'react-bootstrap';
 
-// ❌ 하드코딩 금지
-.component {
-  color: #374151;        // 대신 var(--color-gray-700) 사용
-  padding: 16px;         // 대신 var(--spacing-4) 사용
-  font-size: 14px;       // 대신 var(--font-size-sm) 사용
-}
+const Component = () => (
+  <Container className="py-5">
+    <Row>
+      <Col lg={8}>
+        <Card className="shadow-sm border-0">
+          <Card.Body className="p-4">
+            <Button variant="primary" size="lg">
+              액션 버튼
+            </Button>
+          </Card.Body>
+        </Card>
+      </Col>
+    </Row>
+  </Container>
+);
 ```
 
-### 색상 시스템
+## 🎨 다크모드 호환 색상 시스템
 
-```scss
-// ✅ 의미적 색상 사용
-.success { color: var(--color-success); }
-.error { color: var(--color-error); }
-.warning { color: var(--color-warning); }
-.primary { color: var(--color-primary); }
+### 필수 색상 클래스 (다크모드 자동 대응)
 
-// ✅ 그레이 스케일 활용
-.text-primary { color: var(--color-gray-900); }
-.text-secondary { color: var(--color-gray-600); }
-.text-muted { color: var(--color-gray-400); }
-.border { border-color: var(--color-gray-200); }
-.background { background: var(--color-gray-50); }
+```typescript
+// ✅ 텍스트 색상
+className="text-body"           // 기본 텍스트
+className="text-body-secondary" // 보조 텍스트 (기존 text-muted 대체)
+className="text-primary"        // 브랜드 색상
+
+// ✅ 배경 색상  
+className="bg-body"             // 페이지 배경 (기존 bg-white 대체)
+className="bg-body-secondary"   // 패널 배경 (기존 bg-light 대체) 
+className="bg-body-tertiary"    // 헤더/사이드바 배경
+
+// ❌ 피해야 할 고정 색상
+className="text-dark"   // → text-body 사용
+className="text-muted"  // → text-body-secondary 사용
+className="bg-white"    // → bg-body 사용
+className="bg-light"    // → bg-body-secondary 사용
 ```
 
-## 🔧 기존 믹스인 활용 (필수)
+### 실제 프로젝트 사용 예시
 
-### 레이아웃 믹스인
+```typescript
+// HomePage.tsx 패턴
+<Container className="py-5">
+  <Card className="border-0 shadow-sm">
+    <Card.Body className="p-4">
+      <Card.Text className="text-body-secondary">
+        설명 텍스트
+      </Card.Text>
+    </Card.Body>
+  </Card>
+</Container>
 
-```scss
-// ✅ 기존 믹스인 재사용
-.container {
-  @include flex-center;          // 중앙 정렬
-  @include flex-between;         // 양쪽 정렬
-  @include flex-column;          // 세로 배치
-  @include flex-column-center;   // 세로 중앙 정렬
-}
-
-.card {
-  @include card;                 // 기본 카드 스타일
-  @include card-hover;           // 호버 효과가 있는 카드
-}
-
-.button {
-  @include button-base;          // 기본 버튼 스타일
-  @include button-reset;         // 버튼 리셋
-}
-
-.input {
-  @include input-base;           // 기본 인풋 스타일
-}
+// TodoPage.tsx 패턴  
+<Card className="bg-body-secondary border-0">
+  <Card.Body className="py-3">
+    <small className="text-body-secondary">
+      필터 옵션
+    </small>
+  </Card.Body>
+</Card>
 ```
 
-### 반응형 믹스인
+## 🧩 React Bootstrap 컴포넌트 사용법
 
-```scss
-// ✅ 기존 반응형 믹스인 활용
-.component {
-  padding: var(--spacing-6);
-  
-  @include tablet {
-    padding: var(--spacing-4);
-  }
-  
-  @include mobile {
-    padding: var(--spacing-3);
-  }
-}
+### 프로젝트에서 사용 중인 컴포넌트들
 
-// ✅ 다양한 반응형 옵션
-.responsive-component {
-  @include mobile-down {    // ~639px
-    font-size: var(--font-size-sm);
-  }
-  
-  @include tablet-up {      // 768px~
-    display: flex;
-  }
-  
-  @include desktop-up {     // 1024px~
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
+#### **레이아웃 컴포넌트**
+```typescript
+import { Container, Row, Col } from 'react-bootstrap';
+
+// ✅ 표준 레이아웃 패턴
+<Container className="py-5">
+  <Row className="justify-content-center">
+    <Col xs={12} md={8} lg={6}>
+      {/* 콘텐츠 */}
+    </Col>
+  </Row>
+</Container>
 ```
 
-## 📝 컴포넌트 스타일 패턴
+#### **네비게이션 컴포넌트**
+```typescript
+import { Navbar, Nav, Offcanvas } from 'react-bootstrap';
 
-### 1. 루트 클래스 패턴
+// AppLayout.tsx에서 사용하는 패턴
+<Navbar bg="body-tertiary" expand="lg" className="border-bottom sticky-top">
+  <Navbar.Brand as={Link} to="/" className="fw-bold text-primary">
+    Vibe
+  </Navbar.Brand>
+</Navbar>
 
-```scss
-// ✅ 항상 .root 클래스로 시작
-.root {
-  // 컨테이너 스타일
-  position: relative;
-  display: flex;
-  flex-direction: column;
-}
-
-// 자식 요소들
-.header { /* ... */ }
-.content { /* ... */ }
-.footer { /* ... */ }
+<Offcanvas show={show} onHide={() => setShow(false)} className="bg-body">
+  <Nav className="flex-column">
+    <Nav.Link as={Link} to="/" className="text-body">
+      홈
+    </Nav.Link>
+  </Nav>
+</Offcanvas>
 ```
 
-### 2. Variant 스타일 패턴
+#### **폼 컴포넌트**
+```typescript
+import { Form, Button, InputGroup } from 'react-bootstrap';
 
-```scss
-// ✅ 기존 패턴 따르기
-.root {
-  // 기본 스타일
-}
-
-// Size variants
-.sm { /* small size */ }
-.md { /* medium size */ }
-.lg { /* large size */ }
-
-// Color variants  
-.primary { /* primary color */ }
-.secondary { /* secondary color */ }
-.danger { /* danger color */ }
-
-// State variants
-.disabled { /* disabled state */ }
-.loading { /* loading state */ }
-.active { /* active state */ }
+// TodoPage.tsx에서 사용하는 패턴
+<Form onSubmit={handleSubmit}>
+  <InputGroup>
+    <Form.Control
+      type="text"
+      placeholder="검색어 입력"
+      value={searchTerm}
+      onChange={(e) => setSearchTerm(e.target.value)}
+    />
+    <Button variant="outline-secondary" type="submit">
+      🔍
+    </Button>
+  </InputGroup>
+</Form>
 ```
 
-### 3. 상태 및 모디파이어
+#### **테이블 및 데이터 표시**
+```typescript
+import { Table, Badge, Pagination } from 'react-bootstrap';
 
-```scss
-// ✅ 상태 클래스 패턴
-.root {
-  transition: all 0.2s ease-in-out;
-  
-  &:hover {
-    transform: translateY(-2px);
-  }
-  
-  &:active {
-    transform: translateY(0);
-  }
-  
-  &:focus-visible {
-    outline: 2px solid var(--color-primary);
-    outline-offset: 2px;
-  }
-  
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-}
-
-// ✅ 모디파이어 클래스
-.fullWidth { width: 100%; }
-.rounded { border-radius: var(--border-radius-lg); }
-.elevated { box-shadow: var(--shadow-lg); }
+// TodoPage.tsx 테이블 패턴
+<Table responsive hover className="mb-0">
+  <thead className="table-light">
+    <tr>
+      <th>ID</th>
+      <th>생성일</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        <Badge bg="secondary" pill>#{id}</Badge>
+      </td>
+      <td>
+        <div className="fw-medium">날짜</div>
+        <small className="text-body-secondary">상대시간</small>
+      </td>
+    </tr>
+  </tbody>
+</Table>
 ```
 
-## 🎯 애니메이션 및 트랜지션
+#### **알림 및 상태 표시**
+```typescript
+import { Alert, Spinner, Accordion } from 'react-bootstrap';
 
-### 일관된 애니메이션 값
+// 오류 상태 표시
+<Alert variant="danger" className="text-center">
+  <Alert.Heading>🚨 오류가 발생했습니다</Alert.Heading>
+  <p>메시지</p>
+</Alert>
 
-```scss
-// ✅ 일관된 duration과 easing
-.animated {
-  transition: all 0.2s ease-in-out;        // 기본
-  transition: transform 0.3s ease-out;     // 움직임
-  transition: opacity 0.15s ease-in;       // 페이드
-}
+// 로딩 상태
+<Spinner size="sm" className="me-2" />
 
-// ✅ 키프레임 애니메이션
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
+// 상세 정보 접기/펼치기
+<Accordion>
+  <Accordion.Item eventKey="0">
+    <Accordion.Header>오류 세부사항</Accordion.Header>
+    <Accordion.Body>세부 내용</Accordion.Body>
+  </Accordion.Item>
+</Accordion>
+```
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
+## 🌓 다크모드 구현 패턴
 
-.fadeIn { animation: fadeIn 0.3s ease-out; }
-.spinning { animation: spin 1s linear infinite; }
+### useTheme 훅 사용법
+
+```typescript
+import { useTheme } from '@/shared/hooks';
+
+const Component = () => {
+  const { theme, effectiveTheme, toggleTheme, setTheme } = useTheme();
+  
+  return (
+    <div className="bg-body text-body">
+      {/* 테마 토글 버튼 */}
+      <Button 
+        variant="outline-secondary"
+        onClick={toggleTheme}
+        title={`현재 테마: ${effectiveTheme}`}
+      >
+        {effectiveTheme === 'dark' ? '🌙' : '☀️'}
+      </Button>
+      
+      {/* 테마 선택 드롭다운 */}
+      <Dropdown>
+        <Dropdown.Header>테마 설정</Dropdown.Header>
+        <Dropdown.Item 
+          onClick={() => setTheme('light')}
+          className={theme === 'light' ? 'fw-bold' : ''}
+        >
+          ☀️ 라이트 모드
+        </Dropdown.Item>
+        <Dropdown.Item 
+          onClick={() => setTheme('dark')}
+          className={theme === 'dark' ? 'fw-bold' : ''}
+        >
+          🌙 다크 모드
+        </Dropdown.Item>
+        <Dropdown.Item 
+          onClick={() => setTheme('auto')}
+          className={theme === 'auto' ? 'fw-bold' : ''}
+        >
+          🔄 시스템 설정
+        </Dropdown.Item>
+      </Dropdown>
+    </div>
+  );
+};
+```
+
+### 테마 적용 체크리스트
+
+#### ✅ 반드시 확인할 것들
+- [ ] `text-body` 또는 `text-body-secondary` 사용했는가?
+- [ ] `bg-body`, `bg-body-secondary`, `bg-body-tertiary` 사용했는가?
+- [ ] 하드코딩된 색상(#ffffff, #000000) 사용하지 않았는가?
+- [ ] 라이트/다크 모드 모두에서 가독성 확인했는가?
+
+#### ❌ 피해야 할 패턴들
+```typescript
+// 하드코딩된 색상
+style={{ color: '#000', backgroundColor: '#fff' }} 
+
+// 고정된 색상 클래스
+className="text-dark bg-white"
+
+// 조건부 테마 스타일링 (Bootstrap이 자동 처리)
+className={theme === 'dark' ? 'text-white' : 'text-dark'}
+```
+
+## 🏛️ FSD 아키텍처 스타일링 패턴
+
+### 계층별 스타일링 방법
+
+#### **Pages (pages/)**
+```typescript
+// 전체 페이지 레이아웃
+export const HomePage = () => (
+  <Container className="py-5">
+    <Row className="justify-content-center">
+      <Col lg={10}>
+        {/* 페이지 콘텐츠 */}
+      </Col>
+    </Row>
+  </Container>
+);
+```
+
+#### **Widgets (widgets/)**
+```typescript
+// AppLayout.tsx - 전체 앱 레이아웃
+export const AppLayout = ({ children }) => (
+  <div className="d-flex flex-column min-vh-100 bg-body">
+    <Navbar bg="body-tertiary" className="border-bottom sticky-top">
+      {/* 헤더 */}
+    </Navbar>
+    <main className="flex-grow-1 p-4">
+      {children}
+    </main>
+  </div>
+);
+```
+
+#### **Features (features/)**
+```typescript
+// AuthUI - CSS Module 사용 예외 케이스
+import styles from './AuthUI.module.scss';
+
+export const AuthUI = () => (
+  <div> {/* Card 스타일링 제거, 부모에서 처리 */}
+    <Auth
+      appearance={{
+        className: {
+          button: styles.authButton,
+          input: styles.authInput,
+        }
+      }}
+    />
+  </div>
+);
+```
+
+#### **Shared (shared/)**
+```typescript
+// shared/ui 컴포넌트는 Bootstrap 컴포넌트 래핑
+export { Button, Card, Container } from 'react-bootstrap';
 ```
 
 ## 📱 반응형 디자인 패턴
 
-### 모바일 퍼스트 접근
+### Bootstrap 그리드 활용
 
-```scss
-// ✅ 모바일 퍼스트로 작성
-.component {
-  // 모바일 스타일 (기본)
-  padding: var(--spacing-3);
-  font-size: var(--font-size-sm);
-  
-  @include tablet-up {
-    // 태블릿 이상
-    padding: var(--spacing-4);
-    font-size: var(--font-size-base);
-  }
-  
-  @include desktop-up {
-    // 데스크톱 이상
-    padding: var(--spacing-6);
-    font-size: var(--font-size-lg);
-  }
-}
+```typescript
+// 모바일 퍼스트 반응형
+<Row>
+  <Col xs={12} sm={8} md={6} lg={4}>
+    <Card className="h-100">
+      {/* 카드 콘텐츠 */}
+    </Card>
+  </Col>
+</Row>
+
+// 데스크톱 사이드바 패턴 (AppLayout.tsx)
+<div className="d-none d-lg-block border-end bg-body" 
+     style={{ width: '240px', flexShrink: 0 }}>
+  {/* 데스크톱 사이드바 */}
+</div>
+
+// 모바일 Offcanvas 패턴
+<Offcanvas show={showSidebar} onHide={() => setShowSidebar(false)}>
+  {/* 모바일 사이드바 */}
+</Offcanvas>
 ```
 
-### 그리드 반응형 패턴
+### 자주 사용하는 유틸리티 클래스
 
-```scss
-// ✅ 반응형 그리드
-.grid {
-  display: grid;
-  gap: var(--spacing-4);
-  grid-template-columns: 1fr;           // 모바일: 1열
-  
-  @include tablet-up {
-    grid-template-columns: repeat(2, 1fr);  // 태블릿: 2열
-  }
-  
-  @include desktop-up {
-    grid-template-columns: repeat(3, 1fr);  // 데스크톱: 3열
-  }
-}
+```typescript
+// 간격
+className="py-5"        // 위아래 패딩
+className="mb-4"        // 아래 마진
+className="gap-3"       // Flexbox gap
+
+// 레이아웃
+className="d-flex"                    // Flexbox
+className="justify-content-center"   // 중앙 정렬
+className="align-items-center"       // 수직 중앙
+className="text-center"              // 텍스트 중앙
+
+// 반응형 표시/숨김
+className="d-none d-lg-block"        // 데스크톱에서만 표시
+className="d-block d-lg-none"        // 모바일에서만 표시
+
+// 크기 및 형태
+className="w-100"       // 전체 너비
+className="h-100"       // 전체 높이
+className="min-vh-100"  // 최소 뷰포트 높이
+className="rounded"     // 둥근 모서리
+className="shadow-sm"   // 그림자
 ```
 
-## 🔍 스타일 디버깅 및 최적화
+## 🔧 실무 스타일링 팁
 
-### 성능 고려사항
+### 컴포넌트 작성 시 체크리스트
 
-```scss
-// ✅ 성능 최적화
-.optimized {
-  // GPU 가속 활용
-  transform: translateZ(0);
-  will-change: transform;
-  
-  // 불필요한 리페인트 방지
-  backface-visibility: hidden;
-  
-  // 효율적인 셀렉터 사용
-  > .direct-child { /* 직접 자식만 */ }
-}
+1. **Import 순서**
+   ```typescript
+   // 1. React 관련
+   import { useState } from 'react';
+   
+   // 2. Bootstrap 컴포넌트
+   import { Container, Row, Col } from 'react-bootstrap';
+   
+   // 3. 라우팅
+   import { Link } from 'react-router-dom';
+   
+   // 4. 커스텀 훅
+   import { useTheme, useAuth } from '@/shared/hooks';
+   ```
 
-// ❌ 성능에 좋지 않은 패턴
-.inefficient {
-  * { margin: 0; }              // 전역 셀렉터
-  .parent .child .grandchild {} // 깊은 중첩
-  [class*="btn"] {}             // 속성 와일드카드
-}
+2. **className 작성 순서**
+   ```typescript
+   // 레이아웃 → 색상 → 상태 → 유틸리티
+   className="d-flex justify-content-center bg-body text-body py-5 shadow-sm"
+   ```
+
+3. **접근성 고려**
+   ```typescript
+   // 버튼에 title 속성
+   <Button title="테마 전환">🌙</Button>
+   
+   // 테이블 헤더
+   <Table>
+     <thead>
+       <tr>
+         <th scope="col">제목</th>
+       </tr>
+     </thead>
+   </Table>
+   ```
+
+### 성능 최적화
+
+```typescript
+// ✅ 필요한 컴포넌트만 import
+import { Container, Row, Col } from 'react-bootstrap';
+
+// ❌ 전체 import 금지
+import * as Bootstrap from 'react-bootstrap';
+
+// ✅ 조건부 클래스는 클래스명 정리
+const buttonClass = `btn btn-${variant} ${size ? `btn-${size}` : ''} ${className || ''}`.trim();
 ```
 
-## 📋 스타일 체크리스트
-
-### 작성 전 확인사항
-- [ ] 기존 CSS 변수를 사용했는가?
-- [ ] 기존 믹스인을 활용했는가?
-- [ ] 하드코딩된 값이 없는가?
-- [ ] 반응형이 고려되었는가?
-
-### 작성 후 확인사항
-- [ ] 다크모드 대응이 되었는가?
-- [ ] 접근성이 고려되었는가?
-- [ ] 성능 최적화가 되었는가?
-- [ ] 기존 디자인 시스템과 일관성이 있는가?
-
-## 💡 스타일 작성 팁
-
-1. **변수 우선**: 새로운 값보다 기존 CSS 변수 활용
-2. **믹스인 재사용**: 공통 패턴은 믹스인으로 해결
-3. **일관된 네이밍**: 기존 클래스명 패턴 따르기
-4. **점진적 확장**: 큰 변경보다 작은 단위로 개선
-5. **문서화**: 복잡한 스타일에는 주석 추가
-
-이 가이드를 통해 Vibe 프로젝트의 일관된 스타일을 유지하며 효율적으로 개발할 수 있습니다.
+이 가이드를 통해 Vibe 프로젝트의 일관된 스타일링을 유지하며 효율적으로 개발할 수 있습니다.

@@ -27,3 +27,6 @@ export {
   type PaginationParams,
   type PaginationResult
 } from './useSupabaseQuery';
+
+// 테마 관리
+export { useTheme, type Theme, type UseThemeReturn } from './useTheme';
