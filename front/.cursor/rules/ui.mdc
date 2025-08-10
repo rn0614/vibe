@@ -309,3 +309,282 @@ Header, Footer, Sidebar, Navigation
 5. **문서화**: 새로운 컴포넌트는 사용 예시와 함께 문서화
 
 이 가이드를 통해 중복 개발을 방지하고 일관성 있는 UI 컴포넌트를 개발할 수 있습니다.
+
+## 🔧 ESLint 기반 UI 컴포넌트 개발 룰
+
+### 📝 컴포넌트 파일 구조 규칙
+
+#### 1. **파일 네이밍 컨벤션**
+```typescript
+// ✅ 올바른 파일명
+Button.tsx, Button.module.scss
+UserCard.tsx, UserCard.module.scss  
+LoginForm.tsx, LoginForm.module.scss
+
+// ❌ 잘못된 파일명
+button.tsx, usercard.tsx
+login-form.tsx, Login_Form.tsx
+```
+
+#### 2. **컴포넌트 Export 패턴**
+```typescript
+// ✅ Named export 사용 (필수)
+export const Button: React.FC<ButtonProps> = ({ children, ...props }) => {
+  return <button {...props}>{children}</button>;
+};
+
+// ❌ Default export 금지
+export default Button;
+```
+
+#### 3. **Props 타입 정의**
+```typescript
+// ✅ 인터페이스로 Props 정의 (필수)
+interface ButtonProps {
+  variant?: 'primary' | 'secondary' | 'outline';
+  size?: 'sm' | 'md' | 'lg';
+  loading?: boolean;
+  children: ReactNode;
+  onClick?: () => void;
+}
+
+// ❌ Type alias 사용 금지
+type ButtonProps = {
+  // ...
+};
+```
+
+### 🎨 스타일링 ESLint 룰
+
+#### 1. **CSS Modules 사용 강제**
+```typescript
+// ✅ CSS Modules import 필수
+import styles from './Button.module.scss';
+
+export const Button = () => (
+  <button className={styles.button}>
+    Click me
+  </button>
+);
+
+// ❌ 인라인 스타일 금지
+export const Button = () => (
+  <button style={{ color: 'red' }}>
+    Click me
+  </button>
+);
+```
+
+#### 2. **className 조합 패턴**
+```typescript
+// ✅ clsx 또는 조건부 클래스 사용
+import styles from './Button.module.scss';
+
+export const Button = ({ variant, disabled }: ButtonProps) => (
+  <button 
+    className={`${styles.button} ${styles[variant]} ${disabled ? styles.disabled : ''}`}
+  >
+    Click me
+  </button>
+);
+
+// ✅ 또는 clsx 사용 (권장)
+import clsx from 'clsx';
+import styles from './Button.module.scss';
+
+export const Button = ({ variant, disabled }: ButtonProps) => (
+  <button 
+    className={clsx(styles.button, styles[variant], {
+      [styles.disabled]: disabled
+    })}
+  >
+    Click me
+  </button>
+);
+```
+
+### ♿ 접근성 ESLint 룰
+
+#### 1. **필수 접근성 속성**
+```typescript
+// ✅ 접근성 속성 포함 필수
+export const Button = ({ children, loading, ...props }: ButtonProps) => (
+  <button 
+    {...props}
+    aria-disabled={loading}
+    aria-label={loading ? '로딩 중...' : undefined}
+  >
+    {children}
+  </button>
+);
+
+// ✅ 이미지에 alt 속성 필수
+export const Avatar = ({ src, name }: AvatarProps) => (
+  <img src={src} alt={`${name}의 프로필 이미지`} />
+);
+```
+
+#### 2. **키보드 내비게이션 지원**
+```typescript
+// ✅ 키보드 이벤트 핸들러 포함
+export const Modal = ({ onClose }: ModalProps) => {
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [onClose]);
+
+  return (
+    <div role="dialog" aria-modal="true">
+      {/* Modal content */}
+    </div>
+  );
+};
+```
+
+### ⚡ 성능 ESLint 룰
+
+#### 1. **불필요한 리렌더링 방지**
+```typescript
+// ✅ React.memo 사용 (필요한 경우)
+export const ExpensiveComponent = React.memo<ExpensiveComponentProps>(
+  ({ data, onUpdate }) => {
+    return (
+      <div>
+        {/* 복잡한 렌더링 로직 */}
+      </div>
+    );
+  }
+);
+
+// ✅ useCallback 사용 (필요한 경우)
+export const ParentComponent = () => {
+  const [items, setItems] = useState([]);
+  
+  const handleItemClick = useCallback((id: string) => {
+    setItems(prev => prev.filter(item => item.id !== id));
+  }, []);
+
+  return (
+    <div>
+      {items.map(item => (
+        <ItemComponent 
+          key={item.id} 
+          item={item} 
+          onClick={handleItemClick}
+        />
+      ))}
+    </div>
+  );
+};
+```
+
+#### 2. **Props 구조분해 패턴**
+```typescript
+// ✅ Props 구조분해 사용
+export const Button = ({ 
+  variant = 'primary', 
+  size = 'md', 
+  loading = false,
+  children,
+  ...restProps 
+}: ButtonProps) => {
+  return (
+    <button 
+      className={clsx(styles.button, styles[variant], styles[size])}
+      disabled={loading}
+      {...restProps}
+    >
+      {loading ? <Spinner /> : children}
+    </button>
+  );
+};
+
+// ❌ props 객체 직접 사용 금지
+export const Button = (props: ButtonProps) => {
+  return (
+    <button className={styles.button}>
+      {props.children}
+    </button>
+  );
+};
+```
+
+### 🏗️ 컴포넌트 구조 ESLint 룰
+
+#### 1. **컴포넌트 크기 제한**
+```typescript
+// ✅ 50줄 이하 권장 (ESLint: max-lines-per-function)
+export const Button = ({ variant, children }: ButtonProps) => {
+  return (
+    <button className={clsx(styles.button, styles[variant])}>
+      {children}
+    </button>
+  );
+};
+
+// ❌ 너무 긴 컴포넌트는 분리 필요
+export const VeryLongComponent = () => {
+  // 100줄 이상의 복잡한 로직
+  // → 여러 컴포넌트로 분리 필요
+};
+```
+
+#### 2. **Hook 사용 순서**
+```typescript
+// ✅ Hook 사용 순서 준수
+export const Component = () => {
+  // 1. useState
+  const [state, setState] = useState(initial);
+  
+  // 2. useEffect
+  useEffect(() => {
+    // effect logic
+  }, []);
+  
+  // 3. Custom hooks
+  const { data, loading } = useCustomHook();
+  
+  // 4. Event handlers
+  const handleClick = () => {
+    setState(newValue);
+  };
+  
+  // 5. Render
+  return <div onClick={handleClick}>{data}</div>;
+};
+```
+
+### 📦 Import/Export ESLint 룰
+
+#### 1. **Import 순서**
+```typescript
+// ✅ Import 순서 준수
+// 1. React 및 외부 라이브러리
+import React, { useState, useEffect } from 'react';
+import clsx from 'clsx';
+
+// 2. 내부 컴포넌트 (상위 → 하위 레이어)
+import { Container } from '@/shared/ui/Layout';
+import { User } from '@/entities/user';
+
+// 3. 스타일 및 타입
+import styles from './Component.module.scss';
+import type { ComponentProps } from './types';
+```
+
+#### 2. **절대 경로 사용 강제**
+```typescript
+// ✅ 절대 경로 사용 (필수)
+import { Button } from '@/shared/ui/Button';
+import { useAuth } from '@/shared/hooks/useAuth';
+
+// ❌ 상대 경로 금지
+import { Button } from '../../../shared/ui/Button';
+import { useAuth } from '../../../shared/hooks/useAuth';
+```
+
+이러한 ESLint 룰을 통해 일관성 있고 품질 높은 UI 컴포넌트를 개발할 수 있습니다.

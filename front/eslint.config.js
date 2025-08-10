@@ -19,5 +19,16 @@ export default tseslint.config([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    ignores: ['src/shared/types/database.ts'],
+    rules: {
+      'no-restricted-imports': ['error', {
+        patterns: [
+          {
+            group: ["@/shared/ui/*/*"],  // 패턴을 group으로 감싸기
+            message: "UI 컴포넌트는 폴더명으로만 import하세요. 예: '@/shared/ui/Button'"
+          }
+        ]
+      }]
+    },
   },
 ])

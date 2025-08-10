@@ -1,6 +1,7 @@
-import { Container, Flex, Button } from '@/shared/ui';
+import { Container, Flex } from '@/shared/ui/Layout';
+import { Button } from '@/shared/ui/Button';
 import { Link, useLocation } from 'react-router-dom';
-import { useAuthActions } from '@/shared/hooks';
+import { useAuthActions } from '@/shared/hooks/useAuthActions';
 import styles from './Header.module.scss';
 
 export const Header: React.FC = () => {
@@ -33,6 +34,12 @@ export const Header: React.FC = () => {
               className={`${styles.navLink} ${isActive('/about') ? styles.active : ''}`}
             >
               소개
+            </Link>
+            <Link 
+              to="/todos" 
+              className={`${styles.navLink} ${isActive('/todos') ? styles.active : ''}`}
+            >
+              📝 할 일
             </Link>
           </nav>
           

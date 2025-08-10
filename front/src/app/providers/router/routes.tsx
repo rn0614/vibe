@@ -4,11 +4,12 @@ import {
 import { lazy } from 'react';
 
 // Lazy load pages
-const HomePage = lazy(() => import('@/pages/HomePage').then(module => ({ default: module.HomePage })));
-const AboutPage = lazy(() => import('@/pages/AboutPage').then(module => ({ default: module.AboutPage })));
-const LoginPage = lazy(() => import('@/pages/LoginPage').then(module => ({ default: module.LoginPage })));
-const SignUpPage = lazy(() => import('@/pages/SignUpPage').then(module => ({ default: module.SignUpPage })));
-const NotFoundPage = lazy(() => import('@/pages/NotFoundPage').then(module => ({ default: module.NotFoundPage })));
+const HomePage = lazy(() => import('@/pages/HomePage/HomePage').then(module => ({ default: module.HomePage })));
+const AboutPage = lazy(() => import('@/pages/AboutPage/AboutPage').then(module => ({ default: module.AboutPage })));
+const TodoPage = lazy(() => import('@/pages/TodoPage/TodoPage').then(module => ({ default: module.TodoPage })));
+const LoginPage = lazy(() => import('@/pages/LoginPage/LoginPage').then(module => ({ default: module.LoginPage })));
+const SignUpPage = lazy(() => import('@/pages/SignUpPage/SignUpPage').then(module => ({ default: module.SignUpPage })));
+const NotFoundPage = lazy(() => import('@/pages/NotFoundPage/NotFoundPage').then(module => ({ default: module.NotFoundPage })));
 
 export const routes: RouteObject[] = [
   {
@@ -18,6 +19,10 @@ export const routes: RouteObject[] = [
   {
     path: '/about',
     element: <AboutPage />
+  },
+  {
+    path: '/todos',
+    element: <TodoPage />
   },
   {
     path: '/login',

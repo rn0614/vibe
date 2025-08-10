@@ -1,4 +1,4 @@
-import { Container, Flex, Grid } from '@/shared/ui';
+import { Container, Flex, Grid } from '@/shared/ui/Layout';
 import { Link } from 'react-router-dom';
 import styles from './Footer.module.scss';
 

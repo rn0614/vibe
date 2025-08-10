@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
-import type { Theme } from '@/shared/types';
+import type { Theme } from '@/shared/types/common';
 
 interface AppState {
   // UI 상태

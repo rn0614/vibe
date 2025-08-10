@@ -1,10 +1,10 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Layout, Container, Flex } from '@/shared/ui';
+import { Layout, Container, Flex } from '@/shared/ui/Layout';
 import { AuthUI } from '@/features/auth';
 import { Header } from '@/shared/ui/Header';
 import { Footer } from '@/shared/ui/Footer';
-import { useAuth } from '@/shared/hooks';
+import { useAuth } from '@/shared/hooks/useAuth';
 import styles from './LoginPage.module.scss';
 
 export const LoginPage: React.FC = () => {
