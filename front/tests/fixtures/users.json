@@ -1,0 +1,21 @@
+{
+  "validUser": {
+    "email": "test@example.com",
+    "password": "password123",
+    "name": "테스트 사용자"
+  },
+  "adminUser": {
+    "email": "admin@example.com",
+    "password": "admin123",
+    "name": "관리자"
+  },
+  "invalidUser": {
+    "email": "invalid@example.com",
+    "password": "wrongpassword"
+  },
+  "newUser": {
+    "email": "newuser@example.com",
+    "password": "newpassword123",
+    "name": "새로운 사용자"
+  }
+}
