@@ -1,0 +1,19 @@
+.appHeader {
+  backdrop-filter: blur(8px);
+  background-color: rgba(var(--bs-body-bg-rgb), 0.95) !important;
+  transition: all 0.2s ease;
+  
+  .container-fluid {
+    padding: 0.75rem 1rem;
+    
+    @media (max-width: 768px) {
+      padding: 0.5rem 1rem;
+    }
+  }
+  
+  // 스크롤 시 그림자 효과
+  &.scrolled {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+}
+

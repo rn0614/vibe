@@ -1,43 +1,66 @@
----
-description: Vibe 프로젝트 FSD 아키텍처 유지보수 및 개발 가이드
-globs:
-alwaysApply: true
----
 
-# Vibe 프로젝트 개발 가이드
+# Vibe 프로젝트 Atomic Design 개발 가이드
 
-> 기존 FSD 아키텍처를 유지하며 새로운 기능을 추가하고 코드를 일관성 있게 유지보수하기 위한 가이드
+> 기존 Atomic Design 아키텍처를 유지하며 새로운 기능을 추가하고 코드를 일관성 있게 유지보수하기 위한 가이드
 
-## 🏗️ 현재 프로젝트 구조 (유지 필수)
+## 🏗️ 현재 프로젝트 구조 (Atomic Design + FSD)
 
 ```
 front/src/
 ├── app/           # 앱 초기화, 전역 설정, 라우팅
 ├── pages/         # 페이지 컴포넌트 (라우트 레벨)
-├── widgets/       # 독립적인 UI 블록 (Header, Footer 등)
-├── features/      # 사용자 상호작용, 비즈니스 로직
-├── entities/      # 비즈니스 엔티티
-├── shared/        # 공유 코드 (UI 컴포넌트, 유틸리티, API, Types)
+├── components/    # Atomic Design 컴포넌트
+│   ├── atoms/     # 기본 UI 요소 (Button, Input, Icon 등)
+│   ├── molecules/ # atoms 조합 (AuthActions, UserDropdown 등)
+│   ├── organisms/ # molecules 조합 (AppHeader, AppSidebar 등)
+│   └── templates/ # 페이지 레이아웃 (MainLayout 등)
+├── hooks/         # 커스텀 훅
+├── shared/        # 공유 코드 (API, Types, Utils)
 └── styles/        # 전역 스타일, 변수, 믹스인
 ```
 
-## 🧩 새 컴포넌트 추가 시 레이어 선택 가이드
+## 🧩 새 컴포넌트 추가 시 Atomic Design 레이어 선택 가이드
 
 ### 질문 기반 레이어 결정
 
 **1️⃣ 이 컴포넌트가 어디에 속하는가?**
-- 🔄 **여러 곳에서 재사용**됨 → `shared/ui`
-- 🏢 **특정 비즈니스 엔티티**와 관련 → `entities/*/ui`
-- ⚡ **특정 기능**에서만 사용 → `features/*/ui`
-- 🧱 **복합적인 UI 블록** → `widgets`
-- 📄 **페이지 전체** → `pages`
 
-**2️⃣ 의존성 확인 (FSD 규칙)**
+#### Atoms (기본 UI 요소)
+- 🔧 **가장 기본적인 UI 요소** → `components/atoms`
+- 🎨 **스타일링만 있고 비즈니스 로직 없음** → `components/atoms`
+- 🔄 **여러 곳에서 재사용되는 기본 요소** → `components/atoms`
+
+**예시**: Button, Input, Icon, Logo, Badge, Avatar
+
+#### Molecules (atoms 조합)
+- 🔗 **2-3개의 atoms를 조합** → `components/molecules`
+- ⚡ **단순한 비즈니스 로직 포함** → `components/molecules`
+- 🎯 **특정 기능을 위한 조합** → `components/molecules`
+
+**예시**: AuthActions, UserDropdown, SearchBox, FormField
+
+#### Organisms (molecules 조합)
+- 🧩 **여러 molecules를 조합** → `components/organisms`
+- 🏢 **복잡한 비즈니스 로직 포함** → `components/organisms`
+- 📦 **독립적인 기능 블록** → `components/organisms`
+
+**예시**: AppHeader, AppSidebar, ProductCard, UserProfile
+
+#### Templates (페이지 레이아웃)
+- 📄 **페이지 전체 구조** → `components/templates`
+- 🏗️ **organisms 배치 및 레이아웃** → `components/templates`
+- 🎨 **스타일링과 구조만, 데이터 없음** → `components/templates`
+
+**예시**: MainLayout, DashboardLayout, AuthLayout
+
+### 2️⃣ 의존성 확인 (Atomic Design 규칙)
 ```
-pages → widgets → features → entities → shared
+pages → templates → organisms → molecules → atoms
 ```
 - 하위 레이어는 상위 레이어를 참조할 수 없음
 - 동일 레이어 간 참조 금지
+- atoms는 다른 atoms만 참조 가능
+- molecules는 atoms와 다른 molecules만 참조 가능
 
 ## 📂 필수 파일 구조 템플릿
 
@@ -110,26 +133,35 @@ export const UserCard: React.FC<UserCardProps> = ({ user, onClick }) => {
 
 ```typescript
 // ✅ 올바른 import
-import { Button } from '@/shared/ui';
-import { User } from '@/entities/user';
-import { LoginForm } from '@/features/auth';
+import { Button } from '@/components/atoms/Button';
+import { AuthActions } from '@/components/molecules/AuthActions';
+import { AppHeader } from '@/components/organisms/AppHeader';
+import { MainLayout } from '@/components/templates/MainLayout';
 
 // ❌ 잘못된 import (상대 경로)
-import { Button } from '../../../shared/ui/Button';
+import { Button } from '../../../components/atoms/Button';
 ```
 
-### FSD 레이어 순서 맞춰 import
+### Atomic Design 레이어 순서 맞춰 import
 
 ```typescript
 // 1. React 및 라이브러리
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 
-// 2. 상위 레이어부터 하위 레이어 순서
-import { Layout } from '@/shared/ui';
-import { User } from '@/entities/user';
+// 2. Atoms (가장 기본)
+import { Button, Input, Icon } from '@/components/atoms';
 
-// 3. 현재 레이어
+// 3. Molecules (atoms 조합)
+import { AuthActions, UserDropdown } from '@/components/molecules';
+
+// 4. Organisms (molecules 조합)
+import { AppHeader } from '@/components/organisms';
+
+// 5. Templates (organisms 조합)
+import { MainLayout } from '@/components/templates';
+
+// 6. 현재 레이어
 import styles from './ComponentName.module.scss';
 ```
 
@@ -140,6 +172,7 @@ import styles from './ComponentName.module.scss';
 1. **Props 인터페이스 변경** → 모든 사용처 확인
 2. **CSS 클래스명 변경** → 다른 컴포넌트 영향도 확인
 3. **export 변경** → import하는 모든 파일 확인
+4. **Atomic Design 레이어 변경** → 의존성 방향 확인
 
 ### Breaking Change 최소화
 
@@ -162,13 +195,14 @@ interface ButtonProps {
 
 ## 🚀 새 기능 추가 워크플로우
 
-### 1. 기능 분석 및 레이어 결정
+### 1. 기능 분석 및 Atomic Design 레이어 결정
 ```
 🤔 "사용자 프로필 편집 기능"을 추가한다면?
 
-1. entities/user → User 타입 확장
-2. features/user-profile-edit → 편집 폼 컴포넌트  
-3. pages/ProfilePage → 기존 페이지에 편집 기능 통합
+1. atoms → UserAvatar, EditIcon (기본 UI 요소)
+2. molecules → ProfileForm, EditButton (atoms 조합)
+3. organisms → UserProfileCard (molecules 조합)
+4. templates → ProfileLayout (organisms 배치)
 ```
 
 ### 2. Hook 아키텍처 결정
@@ -181,9 +215,9 @@ interface ButtonProps {
 💡 Router 컨텍스트 필요 여부로 Core/Action 분리 결정
 ```
 
-### 2. 타입 정의 (타입 우선 개발)
+### 3. 타입 정의 (타입 우선 개발)
 ```typescript
-// entities/user/types/index.ts에 추가
+// shared/types/user.ts에 추가
 export interface UserUpdateDto {
   name?: string;
   email?: string;
@@ -191,9 +225,74 @@ export interface UserUpdateDto {
 }
 ```
 
-### 3. Hook 구현 (Core + Action 패턴)
+### 4. Atomic Design 컴포넌트 구현
+
+#### Atoms 생성
 ```typescript
-// shared/hooks/useUserProfile.ts (Core Hook)
+// components/atoms/UserAvatar/UserAvatar.tsx
+interface UserAvatarProps {
+  src?: string;
+  alt: string;
+  size?: 'sm' | 'md' | 'lg';
+}
+
+export const UserAvatar: React.FC<UserAvatarProps> = ({ src, alt, size = 'md' }) => {
+  return (
+    <img 
+      src={src || '/default-avatar.png'} 
+      alt={alt}
+      className={styles.avatar}
+    />
+  );
+};
+```
+
+#### Molecules 생성
+```typescript
+// components/molecules/ProfileForm/ProfileForm.tsx
+import { Input, Button } from '@/components/atoms';
+
+interface ProfileFormProps {
+  user: User;
+  onSubmit: (data: UserUpdateDto) => void;
+  isLoading?: boolean;
+}
+
+export const ProfileForm: React.FC<ProfileFormProps> = ({ user, onSubmit, isLoading }) => {
+  return (
+    <form onSubmit={handleSubmit}>
+      <Input label="이름" defaultValue={user.name} />
+      <Input label="이메일" defaultValue={user.email} />
+      <Button type="submit" loading={isLoading}>저장</Button>
+    </form>
+  );
+};
+```
+
+#### Organisms 생성
+```typescript
+// components/organisms/UserProfileCard/UserProfileCard.tsx
+import { UserAvatar } from '@/components/atoms';
+import { ProfileForm } from '@/components/molecules';
+
+interface UserProfileCardProps {
+  user: User;
+  onUpdate: (data: UserUpdateDto) => void;
+}
+
+export const UserProfileCard: React.FC<UserProfileCardProps> = ({ user, onUpdate }) => {
+  return (
+    <div className={styles.card}>
+      <UserAvatar src={user.avatar} alt={user.name} size="lg" />
+      <ProfileForm user={user} onSubmit={onUpdate} />
+    </div>
+  );
+};
+```
+
+### 5. Hook 구현 (Core + Action 패턴)
+```typescript
+// hooks/useUserProfile.ts (Core Hook)
 export const useUserProfile = (userId: string) => {
   const query = useQuery(['user', userId], () => fetchUser(userId));
   const updateMutation = useMutation(updateUser);
@@ -206,7 +305,7 @@ export const useUserProfile = (userId: string) => {
   };
 };
 
-// shared/hooks/useUserProfileActions.ts (Action Hook)  
+// hooks/useUserProfileActions.ts (Action Hook)  
 export const useUserProfileActions = (userId: string) => {
   const navigate = useNavigate();
   const profile = useUserProfile(userId);
@@ -220,48 +319,34 @@ export const useUserProfileActions = (userId: string) => {
 };
 ```
 
-### 4. 컴포넌트 구현
-```typescript
-// features/user-profile-edit/ui/ProfileEditForm.tsx
-import { useUserProfileActions } from '@/shared/hooks';
-import { Button, Input } from '@/shared/ui';
-
-interface ProfileEditFormProps {
-  userId: string;
-}
-
-export const ProfileEditForm: FC<ProfileEditFormProps> = ({ userId }) => {
-  const { user, updateWithRedirect, isLoading } = useUserProfileActions(userId);
-  
-  const handleSubmit = (data: UserUpdateDto) => {
-    updateWithRedirect(data, '/profile');
-  };
-};
-```
-
-### 5. 기존 코드와의 통합
+### 6. 기존 코드와의 통합
 ```typescript
 // pages/ProfilePage에서 활용
-import { ProfileEditForm } from '@/features/user-profile-edit';
-import { useAuth } from '@/shared/hooks'; // Core Hook (상태만 필요)
+import { UserProfileCard } from '@/components/organisms/UserProfileCard';
+import { useUserProfileActions } from '@/hooks/useUserProfileActions';
 
 export const ProfilePage = () => {
-  const { user } = useAuth(); // Router 독립적
+  const { user, updateWithRedirect, isLoading } = useUserProfileActions(userId);
   
   return (
-    <div>
-      <ProfileEditForm userId={user?.id} />
-    </div>
+    <MainLayout>
+      <UserProfileCard 
+        user={user} 
+        onUpdate={updateWithRedirect}
+      />
+    </MainLayout>
   );
 };
 ```
 
 ## 📋 코드 리뷰 체크리스트
 
-### 구조 검증
-- [ ] 올바른 FSD 레이어에 배치되었는가?
+### Atomic Design 구조 검증
+- [ ] 올바른 Atomic Design 레이어에 배치되었는가?
 - [ ] 의존성 방향이 올바른가? (하위→상위만 허용)
-- [ ] 파일/폴더 명명이 기존 컨벤션과 일치하는가?
+- [ ] atoms는 다른 atoms만 참조하는가?
+- [ ] molecules는 atoms와 molecules만 참조하는가?
+- [ ] organisms는 molecules와 organisms만 참조하는가?
 
 ### Hook 아키텍처 검증
 - [ ] Router 컨텍스트 의존성이 올바르게 분리되었는가?
@@ -297,37 +382,39 @@ const UserDashboard = () => {
   return (/* 복잡한 JSX */);
 };
 
-// ✅ 적절히 분리된 컴포넌트
+// ✅ Atomic Design에 맞게 분리된 컴포넌트
 const UserDashboard = () => {
   return (
-    <Layout>
-      <UserProfile user={user} />
+    <MainLayout>
+      <UserProfileCard user={user} />
       <StatsChart data={stats} />
       <RecentActivity activities={activities} />
-    </Layout>
+    </MainLayout>
   );
 };
 ```
 
-### 타입 중복 제거
+### Atomic Design 레이어 이동
 ```typescript
-// 공통 타입은 shared/types로 이동
-// shared/types/ui.ts
-export interface BaseComponentProps {
-  className?: string;
-  testId?: string;
-}
+// ❌ 잘못된 레이어 배치
+// molecules/UserCard.tsx에서 복잡한 비즈니스 로직 포함
 
-// 각 컴포넌트에서 확장
-interface ButtonProps extends BaseComponentProps {
-  variant?: 'primary' | 'secondary';
-}
+// ✅ 올바른 레이어 배치
+// atoms/UserAvatar.tsx - 기본 아바타 컴포넌트
+// molecules/UserInfo.tsx - 아바타 + 이름 + 이메일 조합
+// organisms/UserCard.tsx - UserInfo + 액션 버튼들 조합
 ```
 
 ## 💡 일관성 유지 팁
 
 1. **기존 컴포넌트 참고**: 비슷한 기능의 기존 컴포넌트를 먼저 찾아보기
 2. **CSS 변수 활용**: 하드코딩된 값 대신 CSS 변수 사용
+3. **타입 재사용**: 비슷한 타입이 있다면 확장해서 사용
+4. **네이밍 일관성**: 기존 파일들의 네이밍 패턴 따르기
+5. **작은 단위로 커밋**: 기능별로 작게 나누어 커밋하기
+6. **Atomic Design 원칙 준수**: 각 레이어의 역할과 책임 명확히 구분
+
+이 가이드를 따라 기존 Vibe 프로젝트의 Atomic Design 아키텍처를 유지하며 새로운 기능을 안전하게 추가할 수 있습니다.
 3. **타입 재사용**: 비슷한 타입이 있다면 확장해서 사용
 4. **네이밍 일관성**: 기존 파일들의 네이밍 패턴 따르기
 5. **작은 단위로 커밋**: 기능별로 작게 나누어 커밋하기

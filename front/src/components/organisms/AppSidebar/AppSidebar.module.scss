@@ -1,0 +1,36 @@
+.appSidebar {
+  width: 280px !important;
+  
+  @media (max-width: 768px) {
+    width: 250px !important;
+  }
+}
+
+.sidebarHeader {
+  border-bottom: 1px solid var(--bs-border-color);
+  padding: 1rem 1.5rem;
+  
+  .offcanvas-title {
+    font-weight: 600;
+    font-size: 1.1rem;
+  }
+}
+
+.sidebarBody {
+  padding: 1rem 0.5rem;
+  
+  h6 {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+  }
+}
+
+.divider {
+  margin: 1.5rem 1rem;
+  border-color: var(--bs-border-color);
+  opacity: 0.5;
+}
+

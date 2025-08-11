@@ -27,6 +27,20 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
+      "@/atoms": ["src/components/atoms"],
+      "@/atoms/*": ["src/components/atoms/*"],
+      "@/molecules": ["src/components/molecules"],
+      "@/molecules/*": ["src/components/molecules/*"],
+      "@/organisms": ["src/components/organisms"],
+      "@/organisms/*": ["src/components/organisms/*"],
+      "@/templates": ["src/components/templates"],
+      "@/templates/*": ["src/components/templates/*"],
+      "@/pages": ["./src/pages"],
+      "@/pages/*": ["./src/pages/*"],
+      "@/hooks": ["./src/hooks"],
+      "@/hooks/*": ["./src/hooks/*"],
+      "@/app": ["./src/app"],
+      "@/app/*": ["./src/app/*"]
     },
 
   },

@@ -1,0 +1,15 @@
+.LoginButton {
+  .btn {
+    transition: all 0.2s ease;
+    font-weight: 500;
+    
+    &:hover {
+      transform: translateY(-1px);
+    }
+    
+    &:active {
+      transform: translateY(0);
+    }
+  }
+}
+

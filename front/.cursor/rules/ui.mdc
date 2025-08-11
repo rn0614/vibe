@@ -1,17 +1,13 @@
----
-globs: ["**/ui/**/*.tsx", "**/ui/**/*.ts"]
-alwaysApply: true
----
 
-# Vibe 프로젝트 UI 컴포넌트 가이드
+# Vibe 프로젝트 Atomic Design UI 컴포넌트 가이드
 
-> 기존 컴포넌트를 최대한 활용하여 중복 개발을 방지하고 일관성을 유지하기 위한 가이드
+> 기존 Atomic Design 컴포넌트를 최대한 활용하여 중복 개발을 방지하고 일관성을 유지하기 위한 가이드
 
-## 🧩 기존 UI 컴포넌트 인벤토리
+## 🧩 기존 Atomic Design 컴포넌트 인벤토리
 
-### 📦 Form Components
+### 📦 Atoms (기본 UI 요소)
 
-#### Button (`@/shared/ui/Button`)
+#### Button (`@/components/atoms/Button`)
 ```typescript
 variant: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger'
 size: 'sm' | 'md' | 'lg'
@@ -29,7 +25,7 @@ endIcon?: ReactNode
 - `ghost`: 최소한의 액션 (링크, 텍스트 버튼)
 - `danger`: 위험한 액션 (삭제, 제거)
 
-#### Input (`@/shared/ui/Input`)
+#### Input (`@/components/atoms/Input`)
 ```typescript
 size: 'sm' | 'md' | 'lg'
 // 추가 기능
@@ -44,35 +40,72 @@ endIcon?: ReactNode
 **확장 가능성:**
 - TextArea, Select, Checkbox, Radio 등은 Input 패턴 확장 권장
 
-### 🏗️ Layout Components
-
-#### Container (`@/shared/ui/Layout`)
+#### IconButton (`@/components/atoms/IconButton`)
 ```typescript
-size: 'sm' | 'md' | 'lg' | 'xl' | 'full'
+icon: string | ReactNode
+size?: 'sm' | 'md' | 'lg'
+variant?: 'primary' | 'secondary' | 'ghost'
 ```
 
-#### Grid (`@/shared/ui/Layout`)
+#### Layout (`@/components/atoms/Layout`)
 ```typescript
-cols: 1 | 2 | 3 | 4 | 6 | 12
-gap: 'sm' | 'md' | 'lg'
+// Container, Grid, Flex 등의 레이아웃 유틸리티
 ```
 
-#### Flex (`@/shared/ui/Layout`)
+#### Logo (`@/components/atoms/Logo`)
 ```typescript
-direction: 'row' | 'column'
-align: 'start' | 'center' | 'end' | 'stretch'
-justify: 'start' | 'center' | 'end' | 'between' | 'around' | 'evenly'
-wrap?: boolean
-gap: 'sm' | 'md' | 'lg'
+size?: 'sm' | 'md' | 'lg'
+variant?: 'light' | 'dark'
 ```
 
-#### Header (`@/shared/ui/Header`)
-- 네비게이션, 로고, 액션 버튼 포함
-- 반응형 메뉴 지원
+### 🔗 Molecules (atoms 조합)
 
-#### Footer (`@/shared/ui/Footer`)
-- 링크 섹션, 저작권 정보 포함
-- 반응형 레이아웃
+#### AuthActions (`@/components/molecules/AuthActions`)
+```typescript
+// 로그인/회원가입 버튼 조합
+onLogin?: () => void
+onSignup?: () => void
+```
+
+#### UserDropdown (`@/components/molecules/UserDropdown`)
+```typescript
+userEmail: string
+onSignOut: () => void
+isSigningOut?: boolean
+```
+
+#### ThemeToggle (`@/components/molecules/ThemeToggle`)
+```typescript
+// 테마 전환 토글
+```
+
+#### NavigationItem (`@/components/molecules/NavigationItem`)
+```typescript
+// 네비게이션 아이템
+```
+
+#### HeaderLeft (`@/components/molecules/HeaderLeft`)
+```typescript
+onMenuToggle: () => void
+```
+
+### 🧩 Organisms (molecules 조합)
+
+#### AppHeader (`@/components/organisms/AppHeader`)
+- HeaderLeft + ThemeToggle + UserDropdown/AuthActions 조합
+- 전체 헤더 레이아웃과 상태 관리
+
+#### AppSidebar (`@/components/organisms/AppSidebar`)
+- 네비게이션 메뉴와 사이드바 레이아웃
+
+#### AuthUI (`@/components/organisms/AuthUI`)
+- 인증 관련 UI 컴포넌트
+
+### 📄 Templates (페이지 레이아웃)
+
+#### MainLayout (`@/components/templates/MainLayout`)
+- AppHeader + AppSidebar + Main Content 조합
+- 전체 페이지 레이아웃 구조
 
 ## 🔄 새 컴포넌트 vs 기존 확장 결정 가이드
 
@@ -153,99 +186,80 @@ interface StateProps {
 }
 ```
 
-## 🔗 컴포넌트 조합 패턴
+## 🔗 Atomic Design 컴포넌트 조합 패턴
 
-### 1. 카드형 컴포넌트 조합
+### 1. Atoms 조합으로 Molecules 생성
 ```typescript
-// ✅ 기존 컴포넌트 조합 활용
-const UserCard = ({ user }: UserCardProps) => (
-  <Container size="sm" className={styles.card}>
-    <Flex direction="column" gap="md">
-      <Flex align="center" gap="sm">
-        <img src={user.avatar} alt="" className={styles.avatar} />
-        <div>
-          <h3>{user.name}</h3>
-          <p>{user.email}</p>
-        </div>
-      </Flex>
-      <Flex gap="sm">
-        <Button variant="primary" size="sm">팔로우</Button>
-        <Button variant="outline" size="sm">메시지</Button>
-      </Flex>
-    </Flex>
-  </Container>
+// ✅ atoms 조합 활용
+const SearchBox = ({ onSearch, placeholder }: SearchBoxProps) => (
+  <div className={styles.searchBox}>
+    <Input 
+      placeholder={placeholder}
+      startIcon={<SearchIcon />}
+      onChange={(e) => onSearch(e.target.value)}
+    />
+    <Button variant="primary" size="sm">
+      검색
+    </Button>
+  </div>
 );
 ```
 
-### 2. 폼 컴포넌트 조합
+### 2. Molecules 조합으로 Organisms 생성
 ```typescript
-// ✅ 폼 레이아웃 패턴
-const LoginForm = () => (
-  <Container size="sm">
-    <Flex direction="column" gap="lg">
-      <Input 
-        label="이메일" 
-        type="email" 
-        fullWidth 
-        error={emailError}
-      />
-      <Input 
-        label="비밀번호" 
-        type="password" 
-        fullWidth 
-        error={passwordError}
-      />
-      <Flex gap="sm">
-        <Button variant="primary" fullWidth loading={isLoading}>
-          로그인
-        </Button>
-        <Button variant="outline" fullWidth>
-          취소
-        </Button>
-      </Flex>
-    </Flex>
-  </Container>
+// ✅ molecules 조합 활용
+const UserProfileCard = ({ user, onUpdate }: UserProfileCardProps) => (
+  <div className={styles.card}>
+    <div className={styles.header}>
+      <UserAvatar src={user.avatar} alt={user.name} />
+      <UserInfo name={user.name} email={user.email} />
+    </div>
+    <ProfileForm user={user} onSubmit={onUpdate} />
+    <UserActions onEdit={handleEdit} onDelete={handleDelete} />
+  </div>
 );
 ```
 
-### 3. 리스트 컴포넌트 조합
+### 3. Organisms 조합으로 Templates 생성
 ```typescript
-// ✅ 그리드 레이아웃 활용
-const ProductGrid = ({ products }: ProductGridProps) => (
-  <Container>
-    <Grid cols={3} gap="lg">
-      {products.map(product => (
-        <ProductCard key={product.id} product={product} />
-      ))}
-    </Grid>
-  </Container>
+// ✅ organisms 조합 활용
+const DashboardLayout = ({ children }: DashboardLayoutProps) => (
+  <div className={styles.dashboard}>
+    <AppHeader onMenuToggle={handleMenuToggle} />
+    <div className={styles.content}>
+      <AppSidebar />
+      <main className={styles.main}>
+        {children}
+      </main>
+    </div>
+  </div>
 );
 ```
 
 ## 📝 컴포넌트 네이밍 가이드
 
-### 1. 기본 컴포넌트 (shared/ui)
+### 1. Atoms (기본 컴포넌트)
 ```typescript
 // ✅ 일반적인 이름 사용
-Button, Input, Modal, Card, Badge, Avatar
+Button, Input, Icon, Logo, Badge, Avatar
 ```
 
-### 2. 비즈니스 컴포넌트 (entities)
+### 2. Molecules (atoms 조합)
+```typescript
+// ✅ 기능 + 컴포넌트 타입
+AuthActions, UserDropdown, SearchBox, FormField
+```
+
+### 3. Organisms (molecules 조합)
 ```typescript
 // ✅ 도메인 + 컴포넌트 타입
-UserCard, ProductItem, OrderSummary
+AppHeader, AppSidebar, UserProfileCard, ProductCard
 ```
 
-### 3. 기능 컴포넌트 (features)
+### 4. Templates (페이지 레이아웃)
 ```typescript
-// ✅ 기능 + Form/List/Card 등
-LoginForm, SearchBox, CartSummary
-```
-
-### 4. 위젯 컴포넌트 (widgets)
-```typescript
-// ✅ 위치나 역할 기반
-Header, Footer, Sidebar, Navigation
+// ✅ 레이아웃 + Layout
+MainLayout, DashboardLayout, AuthLayout
 ```
 
 ## 🔍 컴포넌트 선택 결정 트리
@@ -255,7 +269,7 @@ Header, Footer, Sidebar, Navigation
 #### 버튼이 필요하다면?
 1. **기본 액션** → `Button` (variant 선택)
 2. **링크 역할** → `Button variant="ghost"` 또는 `Link`
-3. **아이콘만** → `Button` (children에 아이콘만)
+3. **아이콘만** → `IconButton`
 
 #### 입력 필드가 필요하다면?
 1. **텍스트 입력** → `Input`
@@ -263,10 +277,10 @@ Header, Footer, Sidebar, Navigation
 3. **선택 입력** → `Input` 패턴 따라 `Select` 생성
 
 #### 레이아웃이 필요하다면?
-1. **컨테이너** → `Container`
-2. **그리드 배치** → `Grid`
-3. **플렉스 배치** → `Flex`
-4. **페이지 전체** → `Layout`
+1. **컨테이너** → `Layout/Container`
+2. **그리드 배치** → `Layout/Grid`
+3. **플렉스 배치** → `Layout/Flex`
+4. **페이지 전체** → `MainLayout`
 
 ### 질문 2: "비슷한 컴포넌트가 있는가?"
 
@@ -278,7 +292,7 @@ Header, Footer, Sidebar, Navigation
 #### 없다면:
 1. 여러 기존 컴포넌트 조합으로 해결 가능한지 확인
 2. 정말 새로운 컴포넌트가 필요한지 재검토
-3. 적절한 FSD 레이어에 배치
+3. 적절한 Atomic Design 레이어에 배치
 
 ## 📋 컴포넌트 개발 체크리스트
 
@@ -287,12 +301,14 @@ Header, Footer, Sidebar, Navigation
 - [ ] 기존 컴포넌트 확장으로 해결 가능한가?
 - [ ] 여러 컴포넌트 조합으로 해결 가능한가?
 - [ ] 정말 새로운 컴포넌트가 필요한가?
+- [ ] 올바른 Atomic Design 레이어에 배치할 것인가?
 
 ### 개발 중 확인
 - [ ] 기존 Props 패턴을 따르고 있는가?
 - [ ] 네이밍이 일관성 있는가?
 - [ ] 재사용 가능하게 설계되었는가?
-- [ ] 적절한 레이어에 배치되었는가?
+- [ ] 적절한 Atomic Design 레이어에 배치되었는가?
+- [ ] 의존성 방향이 올바른가?
 
 ### 개발 후 확인
 - [ ] 다른 곳에서도 사용할 수 있는가?
@@ -307,10 +323,9 @@ Header, Footer, Sidebar, Navigation
 3. **점진적 확장**: 한 번에 많은 기능보다 단계적 확장
 4. **일관성 유지**: 기존 패턴과 네이밍 컨벤션 준수
 5. **문서화**: 새로운 컴포넌트는 사용 예시와 함께 문서화
+6. **Atomic Design 원칙**: 각 레이어의 역할과 책임 명확히 구분
 
-이 가이드를 통해 중복 개발을 방지하고 일관성 있는 UI 컴포넌트를 개발할 수 있습니다.
-
-## 🔧 ESLint 기반 UI 컴포넌트 개발 룰
+## 🔧 ESLint 기반 Atomic Design 컴포넌트 개발 룰
 
 ### 📝 컴포넌트 파일 구조 규칙
 
@@ -567,11 +582,19 @@ export const Component = () => {
 import React, { useState, useEffect } from 'react';
 import clsx from 'clsx';
 
-// 2. 내부 컴포넌트 (상위 → 하위 레이어)
-import { Container } from '@/shared/ui/Layout';
-import { User } from '@/entities/user';
+// 2. Atoms (가장 기본)
+import { Button, Input, Icon } from '@/components/atoms';
 
-// 3. 스타일 및 타입
+// 3. Molecules (atoms 조합)
+import { AuthActions, UserDropdown } from '@/components/molecules';
+
+// 4. Organisms (molecules 조합)
+import { AppHeader } from '@/components/organisms';
+
+// 5. Templates (organisms 조합)
+import { MainLayout } from '@/components/templates';
+
+// 6. 스타일 및 타입
 import styles from './Component.module.scss';
 import type { ComponentProps } from './types';
 ```
@@ -579,11 +602,15 @@ import type { ComponentProps } from './types';
 #### 2. **절대 경로 사용 강제**
 ```typescript
 // ✅ 절대 경로 사용 (필수)
-import { Button } from '@/shared/ui/Button';
-import { useAuth } from '@/shared/hooks/useAuth';
+import { Button } from '@/components/atoms/Button';
+import { useAuth } from '@/hooks/useAuth';
 
 // ❌ 상대 경로 금지
-import { Button } from '../../../shared/ui/Button';
+import { Button } from '../../../components/atoms/Button';
+import { useAuth } from '../../../hooks/useAuth';
+```
+
+이러한 ESLint 룰을 통해 일관성 있고 품질 높은 Atomic Design UI 컴포넌트를 개발할 수 있습니다.
 import { useAuth } from '../../../shared/hooks/useAuth';
 ```
 

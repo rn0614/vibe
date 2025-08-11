@@ -8,6 +8,13 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      '@/atoms': path.resolve(__dirname, './src/components/atoms'),
+      '@/molecules': path.resolve(__dirname, './src/components/molecules'),
+      '@/organisms': path.resolve(__dirname, './src/components/organisms'),
+      '@/templates': path.resolve(__dirname, './src/components/templates'),
+      '@/pages': path.resolve(__dirname, './src/pages'),
+      '@/hooks': path.resolve(__dirname, './src/hooks'),
+      '@/app': path.resolve(__dirname, './src/app'),
     },
   },
   css: {

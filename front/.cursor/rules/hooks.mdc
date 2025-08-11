@@ -1,256 +1,543 @@
-# React Hooks 개발 가이드
+# React Hooks Atomic Design 개발 가이드
 
-> Router 컨텍스트와 상태 관리의 올바른 분리 패턴
+> Atomic Design 아키텍처에 맞는 React Hooks 개발 패턴과 아키텍처 가이드
 
-## 🎯 핵심 원칙
+## 🏗️ 현재 Hooks 구조 (Atomic Design + FSD)
 
-### 1. Router 컨텍스트 분리 원칙
+```
+front/src/
+├── hooks/         # 커스텀 훅
+│   ├── useAuth.ts
+│   ├── useAuthActions.ts
+│   ├── useSupabaseQuery.ts
+│   ├── useSupabaseQueryBuilderV2.ts
+│   └── useTheme.ts
+├── components/    # Atomic Design 컴포넌트
+│   ├── atoms/     # 기본 UI 요소
+│   ├── molecules/ # atoms 조합
+│   ├── organisms/ # molecules 조합
+│   └── templates/ # 페이지 레이아웃
+└── shared/        # 공유 코드 (API, Types, Utils)
+```
 
-#### ❌ 피해야 할 패턴
+## 🧩 Hook 분류 및 역할
+
+### Core Hooks (상태 관리)
+- **Router 독립적**: 라우터 컨텍스트 없이 동작
+- **재사용 가능**: 여러 컴포넌트에서 사용
+- **순수 함수**: 부수 효과 최소화
+
+**예시**: `useAuth`, `useTheme`, `useSupabaseQuery`
+
+### Action Hooks (사용자 액션)
+- **Router 의존적**: `useNavigate`, `useLocation` 등 사용
+- **비즈니스 로직**: 사용자 액션 처리
+- **상태 변경**: 데이터 수정 및 네비게이션
+
+**예시**: `useAuthActions`, `useUserProfileActions`
+
+### UI Hooks (컴포넌트 상태)
+- **컴포넌트 특화**: 특정 컴포넌트에서만 사용
+- **UI 상태 관리**: 모달, 드롭다운, 폼 상태 등
+- **로컬 상태**: 컴포넌트 내부 상태 관리
+
+**예시**: `useModal`, `useDropdown`, `useForm`
+
+## 🔧 Hook 개발 패턴
+
+### 1. Core Hook 패턴 (상태 관리)
+
 ```typescript
-// useNavigate를 Core Hook에서 사용 (위험!)
+// hooks/useAuth.ts
 export const useAuth = () => {
-  const navigate = useNavigate(); // Router 컨텍스트 의존
-  
-  const signOut = useMutation({
-    onSuccess: () => navigate('/') // Router 밖에서 호출 시 에러
-  });
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // 인증 상태 초기화
+    const initAuth = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        setUser(user);
+      } catch (error) {
+        console.error('Auth initialization failed:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initAuth();
+
+    // 인증 상태 변경 구독
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        setUser(session?.user ?? null);
+        setLoading(false);
+      }
+    );
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  return {
+    user,
+    loading,
+    isAuthenticated: !!user,
+  };
 };
 ```
 
-#### ✅ 올바른 패턴
-```typescript
-// Core Hook - Router 독립적
-export const useAuth = () => {
-  const signOut = useMutation({
-    mutationFn: () => authApi.signOut()
-    // navigation 로직 없음
-  });
-  
-  return {
-    signOut: signOut.mutate,
-    signOutAsync: signOut.mutateAsync // await 가능
-  };
-};
+### 2. Action Hook 패턴 (사용자 액션)
 
-// Action Hook - Router 의존적
+```typescript
+// hooks/useAuthActions.ts
 export const useAuthActions = () => {
   const navigate = useNavigate();
-  const auth = useAuth();
-  
-  const signOutWithRedirect = async (redirectTo = '/') => {
-    await auth.signOutAsync();
-    navigate(redirectTo, { replace: true });
-  };
-  
-  return { ...auth, signOutWithRedirect };
-};
-```
+  const { user } = useAuth(); // Core Hook 사용
 
-### 2. Hook 레이어 구조
+  const signInWithGoogle = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
 
-```
-🔥 Core Hooks (Router 독립적)
-├── useAuth          # 순수 인증 상태 + 액션
-├── useAppStore      # 클라이언트 상태
-├── useApi           # 일반적인 API 호출
-└── useSupabaseQuery # Supabase 데이터 페칭
-
-🔥 Action Hooks (Router 의존적)
-├── useAuthActions   # navigation 포함 인증 액션
-├── useFormActions   # 폼 제출 + 리다이렉트
-└── usePageActions   # 페이지 전환 로직
-```
-
-## 📋 개발 가이드라인
-
-### Hook 생성 시 결정 사항
-
-#### 1. Router 컨텍스트 필요 여부
-```typescript
-// ✅ Router 독립적 Hook
-export const useData = () => {
-  const query = useQuery(['data'], fetchData);
-  const mutation = useMutation(updateData);
-  
-  return {
-    data: query.data,
-    updateData: mutation.mutate,
-    updateDataAsync: mutation.mutateAsync
-  };
-};
-
-// ✅ Router 의존적 Action Hook  
-export const useDataActions = () => {
-  const navigate = useNavigate();
-  const data = useData();
-  
-  const updateWithRedirect = async (newData, redirectTo) => {
-    await data.updateDataAsync(newData);
-    navigate(redirectTo);
-  };
-  
-  return { ...data, updateWithRedirect };
-};
-```
-
-#### 2. 상태 관리 도구 선택
-```typescript
-// TanStack Query: 서버 상태
-const { user, posts } = useQuery(['posts'], fetchPosts);
-
-// Zustand: 클라이언트 상태
-const { theme, sidebarOpen } = useAppStore();
-
-// React State: 컴포넌트 로컬 상태
-const [email, setEmail] = useState('');
-```
-
-### 컴포넌트별 Hook 사용법
-
-#### AuthInitializer (Router 밖)
-```typescript
-export const AuthInitializer = ({ children }) => {
-  useAuth(); // ✅ Core Hook만 사용
-  return <>{children}</>;
-};
-```
-
-#### Header/Navigation (Router 안)
-```typescript
-export const Header = () => {
-  const { user, signOutWithRedirect } = useAuthActions(); // ✅ Action Hook
-  
-  return (
-    <button onClick={() => signOutWithRedirect('/')}>
-      로그아웃
-    </button>
-  );
-};
-```
-
-#### Data Display 컴포넌트
-```typescript
-export const UserProfile = () => {
-  const { user, isLoading } = useAuth(); // ✅ Core Hook (상태만 필요)
-  
-  if (isLoading) return <Spinner />;
-  return <div>{user?.name}</div>;
-};
-```
-
-## 🔄 TanStack Query 패턴
-
-### 1. 기본 Query 패턴
-```typescript
-export const usePosts = (categoryId?: string) => {
-  return useQuery({
-    queryKey: ['posts', categoryId],
-    queryFn: () => fetchPosts(categoryId),
-    staleTime: 5 * 60 * 1000, // 5분
-    gcTime: 10 * 60 * 1000,   // 10분
-    enabled: !!categoryId,     // 조건부 실행
-  });
-};
-```
-
-### 2. Mutation 패턴
-```typescript
-export const useCreatePost = () => {
-  const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: (data: CreatePostData) => postsApi.create(data),
-    onSuccess: (newPost) => {
-      // 관련 쿼리 무효화
-      queryClient.invalidateQueries(['posts']);
-      queryClient.invalidateQueries(['posts', newPost.categoryId]);
-      
-      // 또는 Optimistic Update
-      queryClient.setQueryData(['posts'], (oldData) => 
-        oldData ? [...oldData, newPost] : [newPost]
-      );
-    },
-    onError: (error) => {
-      console.error('포스트 생성 실패:', error);
+      if (error) throw error;
+    } catch (error) {
+      console.error('Google sign-in failed:', error);
+      throw error;
     }
-  });
+  };
+
+  const signOutWithRedirect = async (redirectTo = '/') => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      navigate(redirectTo, { replace: true });
+    } catch (error) {
+      console.error('Sign out failed:', error);
+      throw error;
+    }
+  };
+
+  return {
+    user,
+    signInWithGoogle,
+    signOutWithRedirect,
+  };
 };
 ```
 
-### 3. 무한 스크롤 패턴
+### 3. UI Hook 패턴 (컴포넌트 상태)
+
 ```typescript
-export const useInfinitePosts = () => {
-  return useInfiniteQuery({
-    queryKey: ['posts', 'infinite'],
-    queryFn: ({ pageParam = 1 }) => fetchPosts({ page: pageParam }),
-    getNextPageParam: (lastPage, pages) => 
-      lastPage.hasMore ? pages.length + 1 : undefined,
-    initialPageParam: 1,
-  });
+// hooks/useModal.ts
+export const useModal = (initialState = false) => {
+  const [isOpen, setIsOpen] = useState(initialState);
+
+  const open = useCallback(() => setIsOpen(true), []);
+  const close = useCallback(() => setIsOpen(false), []);
+  const toggle = useCallback(() => setIsOpen(prev => !prev), []);
+
+  // ESC 키로 모달 닫기
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        close();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('keydown', handleEscape);
+      return () => document.removeEventListener('keydown', handleEscape);
+    }
+  }, [isOpen, close]);
+
+  return {
+    isOpen,
+    open,
+    close,
+    toggle,
+  };
 };
 ```
 
-## 🛡️ 에러 처리 패턴
+## 🎯 Atomic Design 레이어별 Hook 패턴
 
-### 1. 글로벌 에러 처리
+### Atoms Hooks (기본 UI 요소)
 ```typescript
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: (failureCount, error: any) => {
-        if (error?.status === 401 || error?.status === 403) {
-          return false; // 인증 에러는 재시도 안 함
-        }
-        return failureCount < 2;
+// hooks/atoms/useButton.ts
+export const useButton = (props: ButtonHookProps) => {
+  const [loading, setLoading] = useState(false);
+  const [disabled, setDisabled] = useState(props.disabled || false);
+
+  const handleClick = useCallback(async (e: React.MouseEvent) => {
+    if (disabled || loading) return;
+
+    setLoading(true);
+    try {
+      await props.onClick?.(e);
+    } finally {
+      setLoading(false);
+    }
+  }, [props.onClick, disabled, loading]);
+
+  return {
+    loading,
+    disabled,
+    handleClick,
+  };
+};
+```
+
+### Molecules Hooks (atoms 조합)
+```typescript
+// hooks/molecules/useSearchBox.ts
+export const useSearchBox = (options: SearchBoxOptions) => {
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<SearchResult[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const search = useCallback(async (searchQuery: string) => {
+    if (!searchQuery.trim()) {
+      setResults([]);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const searchResults = await options.searchFunction(searchQuery);
+      setResults(searchResults);
+    } catch (error) {
+      console.error('Search failed:', error);
+      setResults([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [options.searchFunction]);
+
+  const handleQueryChange = useCallback((newQuery: string) => {
+    setQuery(newQuery);
+    search(newQuery);
+  }, [search]);
+
+  return {
+    query,
+    results,
+    loading,
+    handleQueryChange,
+  };
+};
+```
+
+### Organisms Hooks (molecules 조합)
+```typescript
+// hooks/organisms/useUserProfile.ts
+export const useUserProfile = (userId: string) => {
+  const { user, loading: authLoading } = useAuth();
+  const { data: profile, isLoading: profileLoading } = useQuery(
+    ['user-profile', userId],
+    () => fetchUserProfile(userId),
+    { enabled: !!userId }
+  );
+
+  const updateMutation = useMutation(
+    (data: UserUpdateDto) => updateUserProfile(userId, data),
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries(['user-profile', userId]);
       },
-      onError: (error: any) => {
-        if (error?.status === 401) {
-          // 인증 만료 시 로그인 페이지로
-          window.location.href = '/login';
-        }
+    }
+  );
+
+  const deleteMutation = useMutation(
+    () => deleteUserProfile(userId),
+    {
+      onSuccess: () => {
+        // 삭제 후 처리 로직
+      },
+    }
+  );
+
+  return {
+    profile,
+    loading: authLoading || profileLoading,
+    updateProfile: updateMutation.mutate,
+    deleteProfile: deleteMutation.mutate,
+    isUpdating: updateMutation.isLoading,
+    isDeleting: deleteMutation.isLoading,
+  };
+};
+```
+
+### Templates Hooks (페이지 레이아웃)
+```typescript
+// hooks/templates/useMainLayout.ts
+export const useMainLayout = () => {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [theme, setTheme] = useTheme();
+
+  const toggleSidebar = useCallback(() => {
+    setSidebarOpen(prev => !prev);
+  }, []);
+
+  const closeSidebar = useCallback(() => {
+    setSidebarOpen(false);
+  }, []);
+
+  // 반응형 사이드바 처리
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 768) {
+        setSidebarOpen(false);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  return {
+    sidebarOpen,
+    theme,
+    toggleSidebar,
+    closeSidebar,
+    setTheme,
+  };
+};
+```
+
+## 🔄 Hook 조합 패턴
+
+### 1. Core + Action Hook 조합
+```typescript
+// hooks/useUserProfileActions.ts
+export const useUserProfileActions = (userId: string) => {
+  const navigate = useNavigate();
+  const { profile, updateProfile, deleteProfile } = useUserProfile(userId); // Core Hook
+
+  const updateWithRedirect = useCallback(async (data: UserUpdateDto, redirectTo = '/profile') => {
+    try {
+      await updateProfile(data);
+      navigate(redirectTo, { replace: true });
+    } catch (error) {
+      console.error('Profile update failed:', error);
+      throw error;
+    }
+  }, [updateProfile, navigate]);
+
+  const deleteWithRedirect = useCallback(async (redirectTo = '/') => {
+    try {
+      await deleteProfile();
+      navigate(redirectTo, { replace: true });
+    } catch (error) {
+      console.error('Profile deletion failed:', error);
+      throw error;
+    }
+  }, [deleteProfile, navigate]);
+
+  return {
+    profile,
+    updateWithRedirect,
+    deleteWithRedirect,
+  };
+};
+```
+
+### 2. UI Hook 조합
+```typescript
+// hooks/useFormWithValidation.ts
+export const useFormWithValidation = <T extends Record<string, any>>(
+  initialValues: T,
+  validationSchema: ValidationSchema<T>
+) => {
+  const [values, setValues] = useState<T>(initialValues);
+  const [errors, setErrors] = useState<Partial<Record<keyof T, string>>>({});
+  const [touched, setTouched] = useState<Partial<Record<keyof T, boolean>>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const validate = useCallback((fieldValues: T) => {
+    try {
+      validationSchema.validateSync(fieldValues, { abortEarly: false });
+      return {};
+    } catch (validationErrors) {
+      const errors: Partial<Record<keyof T, string>> = {};
+      validationErrors.inner.forEach((error: any) => {
+        errors[error.path as keyof T] = error.message;
+      });
+      return errors;
+    }
+  }, [validationSchema]);
+
+  const handleChange = useCallback((name: keyof T, value: any) => {
+    setValues(prev => ({ ...prev, [name]: value }));
+    setTouched(prev => ({ ...prev, [name]: true }));
+  }, []);
+
+  const handleBlur = useCallback((name: keyof T) => {
+    setTouched(prev => ({ ...prev, [name]: true }));
+    const fieldErrors = validate({ ...values, [name]: values[name] });
+    setErrors(prev => ({ ...prev, [name]: fieldErrors[name] }));
+  }, [values, validate]);
+
+  const handleSubmit = useCallback(async (onSubmit: (values: T) => Promise<void>) => {
+    const validationErrors = validate(values);
+    setErrors(validationErrors);
+
+    if (Object.keys(validationErrors).length === 0) {
+      setIsSubmitting(true);
+      try {
+        await onSubmit(values);
+      } finally {
+        setIsSubmitting(false);
       }
     }
-  }
-});
-```
+  }, [values, validate]);
 
-### 2. 컴포넌트 레벨 에러 처리
-```typescript
-export const PostList = () => {
-  const { data: posts, isLoading, error } = usePosts();
-  
-  if (isLoading) return <Spinner />;
-  if (error) return <ErrorMessage error={error} />;
-  if (!posts?.length) return <EmptyState />;
-  
-  return <div>{posts.map(post => <PostItem key={post.id} post={post} />)}</div>;
+  return {
+    values,
+    errors,
+    touched,
+    isSubmitting,
+    handleChange,
+    handleBlur,
+    handleSubmit,
+  };
 };
 ```
 
-## 🎯 체크리스트
+## 📋 Hook 개발 체크리스트
 
-### ✅ Hook 생성 시
-- [ ] Router 컨텍스트 의존성 확인
-- [ ] 적절한 레이어 (Core vs Action) 선택
-- [ ] 상태 관리 도구 적절히 선택
-- [ ] 에러 처리 포함
-- [ ] TypeScript 타입 정의
+### 구조 검증
+- [ ] 올바른 Hook 분류에 배치되었는가? (Core/Action/UI)
+- [ ] Router 의존성이 적절히 분리되었는가?
+- [ ] 재사용 가능하게 설계되었는가?
+- [ ] Atomic Design 레이어에 맞는 Hook인가?
 
-### ✅ Hook 사용 시
-- [ ] Router 컨텍스트 내부인지 확인
-- [ ] 필요한 기능에 맞는 Hook 선택
-- [ ] 로딩/에러 상태 적절히 처리
-- [ ] 불필요한 리렌더링 방지
+### 성능 검증
+- [ ] 불필요한 리렌더링을 방지했는가?
+- [ ] useCallback, useMemo를 적절히 사용했는가?
+- [ ] 의존성 배열이 올바르게 설정되었는가?
+- [ ] 메모리 누수를 방지했는가?
 
-### ✅ TanStack Query 사용 시
-- [ ] 적절한 queryKey 설정
-- [ ] staleTime/gcTime 설정
-- [ ] 관련 쿼리 무효화 처리
-- [ ] Optimistic Update 고려
+### 에러 처리
+- [ ] 에러 상태를 적절히 관리하는가?
+- [ ] 에러 바운더리와 연동되는가?
+- [ ] 사용자에게 적절한 에러 메시지를 제공하는가?
 
-## 🔗 관련 문서
+### 테스트 가능성
+- [ ] 순수 함수로 분리 가능한가?
+- [ ] 모킹하기 쉬운 구조인가?
+- [ ] 테스트 케이스를 작성하기 쉬운가?
 
-- [HOOKS_ARCHITECTURE_GUIDE.md](../docs/HOOKS_ARCHITECTURE_GUIDE.md)
-- [AUTH_UNIFIED_ARCHITECTURE.md](../docs/AUTH_UNIFIED_ARCHITECTURE.md)
-- [DEVELOPMENT_PATTERNS.md](../docs/DEVELOPMENT_PATTERNS.md)
+## 🔧 Hook 네이밍 컨벤션
+
+### Core Hooks
+```typescript
+// 상태 관리 Hook
+useAuth()           // 인증 상태
+useTheme()          // 테마 상태
+useUser()           // 사용자 정보
+useData()           // 데이터 상태
+```
+
+### Action Hooks
+```typescript
+// 사용자 액션 Hook
+useAuthActions()    // 인증 액션
+useUserActions()    // 사용자 액션
+useFormActions()    // 폼 액션
+useNavigation()     // 네비게이션 액션
+```
+
+### UI Hooks
+```typescript
+// UI 상태 Hook
+useModal()          // 모달 상태
+useDropdown()       // 드롭다운 상태
+useForm()           // 폼 상태
+useToggle()         // 토글 상태
+```
+
+## 💡 Hook 개발 Best Practices
+
+### 1. 단일 책임 원칙
+```typescript
+// ❌ 너무 많은 책임을 가진 Hook
+const useUserDashboard = () => {
+  // 사용자 정보, 프로필, 설정, 통계 등 모든 것을 관리
+};
+
+// ✅ 단일 책임을 가진 Hook들로 분리
+const useUser = () => { /* 사용자 정보만 */ };
+const useUserProfile = () => { /* 프로필만 */ };
+const useUserSettings = () => { /* 설정만 */ };
+const useUserStats = () => { /* 통계만 */ };
+```
+
+### 2. 의존성 최소화
+```typescript
+// ❌ 너무 많은 의존성
+const useUserProfile = (userId: string, includeStats: boolean, includeSettings: boolean) => {
+  // 복잡한 의존성들
+};
+
+// ✅ 의존성 최소화
+const useUserProfile = (userId: string) => {
+  // 기본 프로필 정보만
+};
+
+const useUserProfileStats = (userId: string) => {
+  // 통계 정보만
+};
+```
+
+### 3. 에러 처리 패턴
+```typescript
+// ✅ 일관된 에러 처리
+const useDataWithError = <T>(fetchFn: () => Promise<T>) => {
+  const [data, setData] = useState<T | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const result = await fetchFn();
+      setData(result);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchFn]);
+
+  return { data, error, loading, refetch: fetchData };
+};
+```
+
+### 4. 메모이제이션 패턴
+```typescript
+// ✅ 적절한 메모이제이션
+const useExpensiveCalculation = (data: ComplexData[]) => {
+  const result = useMemo(() => {
+    return data.reduce((acc, item) => {
+      // 복잡한 계산 로직
+      return acc + processItem(item);
+    }, 0);
+  }, [data]);
+
+  const handleUpdate = useCallback((id: string, newValue: any) => {
+    // 업데이트 로직
+  }, []);
+
+  return { result, handleUpdate };
+};
+```
+
+이 가이드를 통해 Atomic Design 아키텍처에 맞는 일관성 있고 재사용 가능한 React Hooks를 개발할 수 있습니다.

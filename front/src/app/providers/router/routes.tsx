@@ -1,6 +1,6 @@
 import { type RouteObject, Outlet } from "react-router";
 import { lazy } from "react";
-import { AppLayout } from "@/widgets";
+import { MainLayout } from "@/components/templates/MainLayout";
 
 // Lazy load pages
 const HomePage = lazy(() =>
@@ -31,9 +31,9 @@ const NotFoundPage = lazy(() =>
 
 // Layout 컴포넌트
 const RootLayout = () => (
-  <AppLayout>
+  <MainLayout>
     <Outlet />
-  </AppLayout>
+  </MainLayout>
 );
 
 export const routes: RouteObject[] = [

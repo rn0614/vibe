@@ -1,0 +1,35 @@
+.mainLayout {
+  min-height: 100vh;
+  background-color: var(--bs-body-bg);
+  transition: background-color 0.2s ease;
+}
+
+.mainContent {
+  position: relative;
+  animation: fadeInUp 0.3s ease-out;
+  
+  .container-fluid {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 1rem; // 기본값
+    
+    @media (max-width: 768px) {
+      padding: 1rem 0.5rem; // 좌우만 조정
+    }
+    
+    @media (max-width: 576px) {
+      padding: 0.75rem;
+    }
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

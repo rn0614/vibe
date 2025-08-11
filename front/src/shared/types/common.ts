@@ -1,14 +1,3 @@
-// 공통 유틸리티 타입들
-export type LoadingState = 'idle' | 'loading' | 'success' | 'error';
-
-export type Theme = 'light' | 'dark';
-
-export interface BaseEntity {
-  id: string;
-  created_at: string;
-  updated_at: string;
-}
-
 // 상태 관리 관련 타입
 export interface AsyncState<T> {
   data: T | null;

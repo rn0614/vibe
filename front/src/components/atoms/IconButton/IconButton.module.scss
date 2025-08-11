@@ -1,0 +1,18 @@
+.iconButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.25rem;
+  aspect-ratio: 1;
+  border: 0 !important;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    transform: translateY(-1px);
+  }
+  
+  &:active {
+    transform: translateY(0);
+  }
+}
+
