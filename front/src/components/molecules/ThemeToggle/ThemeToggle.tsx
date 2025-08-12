@@ -1,5 +1,5 @@
 import { IconButton } from '@/components/atoms/IconButton';
-import { useTheme } from '@/hooks/useTheme';
+import { useTheme } from '@/domains/theme/hooks/useTheme';
 
 export interface ThemeToggleProps {
   className?: string;

@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Container, Row, Col, Card } from "react-bootstrap";
 import { AuthUI } from "@/components/organisms/AuthUI";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/domains/auth/hooks/useAuth";
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();

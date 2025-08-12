@@ -1,7 +1,7 @@
 import { AuthInitializer } from "./providers/auth";
 import { QueryProvider } from "./providers/query";
-import { AppRouter } from "./providers/router";
-import "@/shared/styles/global.scss";
+import { AppRouter } from "./routers";
+import "@/app/styles/global.scss";
 
 function App() {
   return (

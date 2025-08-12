@@ -2,7 +2,7 @@ import { Container, Navbar } from 'react-bootstrap';
 import { ThemeToggle } from '@/components/molecules/ThemeToggle';
 import { LoginButton } from '@/components/molecules/AuthActions/LoginButton';
 import { UserDropdown } from '@/components/molecules/UserDropdown/UserDropdown';
-import { useAuthActions } from '@/hooks/useAuthActions';
+import { useAuthActions } from '@/domains/auth/hooks/useAuthActions';
 import styles from './AppHeader.module.scss';
 import { BrandSection  } from '@/components/molecules/BrandSection/BrandSection';
 import { IconButton } from '@/components/atoms/IconButton';

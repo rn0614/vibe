@@ -1,4 +1,4 @@
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/domains/auth/hooks/useAuth';
 
 /**
  * 앱 초기화 시 인증 상태를 설정하는 컴포넌트

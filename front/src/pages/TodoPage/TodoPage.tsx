@@ -3,7 +3,7 @@ import {
   createSupabaseQuery,
   useSupabaseQueryBuilder,
   useSupabaseMutationBuilder,
-} from "@/hooks/useSupabaseQueryBuilderV2";
+} from "@/domains/supabaseCommon/hooks/useSupabaseQueryBuilderV2";
 import { 
   Container, 
   Row, 
