@@ -8,6 +8,9 @@ export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
+  // 환경변수에서 리다이렉트 URL 가져오기 (배포 환경 대응)
+  const redirectUrl = import.meta.env.VITE_APP_URL || window.location.origin;
+
   // 이미 로그인된 사용자는 홈으로 리다이렉트
   useEffect(() => {
     if (user) {
@@ -31,7 +34,7 @@ export const LoginPage: React.FC = () => {
                 <p className="text-body-secondary">계정에 로그인하여 서비스를 이용하세요</p>
               </div>
 
-              <AuthUI view="sign_in" redirectTo={window.location.origin} />
+              <AuthUI view="sign_in" redirectTo={redirectUrl} />
             </Card.Body>
           </Card>
         </Col>
