@@ -1,0 +1,216 @@
+@use '@/app/styles/mixins' as m;
+
+.responsiveTableContainer {
+  width: 100%;
+  overflow-x: auto;
+  border-radius: var(--border-radius-lg);
+  background: var(--color-white);
+  box-shadow: var(--shadow);
+  
+  // 커스텀 스크롤바 스타일
+  @include m.scrollbar-style;
+  
+  // 스크롤바가 표시될 때 패딩 조정
+  padding-bottom: 2px;
+  
+  // 다크 모드 지원
+  [data-bs-theme="dark"] & {
+    background: var(--color-surface);
+  }
+}
+
+.table {
+  margin-bottom: 0;
+  
+  // 테이블이 최소 너비를 유지하도록 설정
+  min-width: 800px; // 기본 최소 너비
+  
+  // 셀 내용이 줄바꿈되지 않도록 설정
+  td, th {
+    white-space: nowrap;
+    vertical-align: middle;
+    
+    // 특정 컬럼은 최대 너비 제한 (설명, 작성자 등)
+    &.truncate {
+      max-width: 200px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    
+    &.truncate-sm {
+      max-width: 150px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+  
+  // 헤더 스타일
+  thead th {
+    position: sticky;
+    top: 0;
+    background: var(--color-gray-50);
+    z-index: 10;
+    border-bottom: 2px solid var(--color-gray-200);
+    
+    // 정렬 가능한 헤더 스타일
+    &.sortable {
+      cursor: pointer;
+      user-select: none;
+      transition: background-color 0.2s ease;
+      
+      &:hover {
+        background-color: var(--color-gray-100);
+      }
+      
+      .sortIcon {
+        margin-left: 0.25rem;
+        color: var(--color-primary);
+        font-weight: bold;
+      }
+    }
+    
+    // 다크 모드
+    [data-bs-theme="dark"] & {
+      background: var(--color-gray-800);
+      border-bottom-color: var(--color-gray-700);
+      
+      &.sortable:hover {
+        background-color: var(--color-gray-700);
+      }
+    }
+  }
+  
+  // 행 스타일
+  tbody tr {
+    &:hover {
+      background-color: var(--color-gray-50);
+    }
+    
+    // 다크 모드
+    [data-bs-theme="dark"] &:hover {
+      background-color: var(--color-gray-800);
+    }
+  }
+  
+  // 액션 버튼 컨테이너
+  .actionButtons {
+    display: flex;
+    gap: 0.25rem;
+    justify-content: flex-start;
+    flex-wrap: nowrap;
+    
+    .btn {
+      flex-shrink: 0;
+    }
+  }
+}
+
+// 반응형 처리
+@include m.mobile {
+  .responsiveTableContainer {
+    // 모바일에서는 더 작은 최소 너비
+    .table {
+      min-width: 600px;
+      font-size: 0.875rem;
+      
+      td, th {
+        padding: 0.5rem 0.75rem;
+        
+        &.truncate {
+          max-width: 120px;
+        }
+        
+        &.truncate-sm {
+          max-width: 100px;
+        }
+        
+        &.truncate-lg {
+          max-width: 300px;
+        }
+      }
+      
+      .actionButtons {
+        gap: 0.125rem;
+        
+        .btn {
+          padding: 0.25rem 0.5rem;
+          font-size: 0.75rem;
+        }
+      }
+    }
+  }
+}
+
+@include m.tablet {
+  .responsiveTableContainer {
+    .table {
+      min-width: 700px;
+    }
+  }
+}
+
+// 스크롤 힌트 (옵션)
+.scrollHint {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  background: linear-gradient(
+    to left,
+    var(--color-white) 0%,
+    transparent 100%
+  );
+  width: 20px;
+  height: 100%;
+  pointer-events: none;
+  z-index: 5;
+  
+  [data-bs-theme="dark"] & {
+    background: linear-gradient(
+      to left,
+      var(--color-surface) 0%,
+      transparent 100%
+    );
+  }
+  
+  &.hidden {
+    display: none;
+  }
+}
+
+// 로딩 오버레이
+.loadingOverlay {
+  position: relative;
+  
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(1px);
+    z-index: 20;
+    
+    [data-bs-theme="dark"] & {
+      background: rgba(0, 0, 0, 0.8);
+    }
+  }
+}
+
+// 접근성
+.table {
+  // 포커스 스타일
+  th.sortable:focus {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+  
+  // 스크린 리더를 위한 정보
+  .srOnly {
+    @include m.sr-only;
+  }
+}

@@ -5,22 +5,27 @@ import {
   useSupabaseMutationBuilder,
 } from "@/domains/supabaseCommon/hooks/useSupabaseQueryBuilderV2";
 import { useAuth } from "@/domains/auth/hooks/useAuth";
+import { ResponsiveTable, type TableColumn } from "@/components/molecules/ResponsiveTable";
+import { TodoStats } from "@/components/molecules/TodoStats";
+import { Pagination } from "@/components/molecules/Pagination";
+import { EmptyState } from "@/components/molecules/EmptyState";
+import { ErrorState } from "@/components/molecules/ErrorState";
+import { SearchForm } from "@/components/molecules/SearchForm";
+import { ButtonGroup } from "@/components/molecules/ButtonGroup";
+import { RefreshButton } from "@/components/atoms/RefreshButton";
+import { EditButton } from "@/components/atoms/EditButton";
+import { DeleteButton } from "@/components/atoms/DeleteButton";
 import { 
   Container, 
   Row, 
   Col, 
   Card, 
-  Form, 
   Button, 
-  Table, 
-  Badge, 
-  Pagination,
-  Accordion,
-  InputGroup,
-  Spinner,
-  Alert
+  Badge,
+  Spinner
 } from 'react-bootstrap';
 import type { Tables } from "@/shared/types/database";
+import { getRelativeTime } from "@/shared/util/time";
 /**
  * 할 일 목록 페이지
  *
@@ -40,21 +45,22 @@ export const TodoPage: React.FC = () => {
 
   // 페이지네이션 상태
   const [currentPage, setCurrentPage] = useState<number>(0);
-  const [pageSize] = useState<number>(10);
+  const [pageSize] = useState<number>(5);
 
   // 정렬 상태
   const [sortColumn, setSortColumn] = useState<keyof TodoItem>("created_at");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
 
-  // 검색/필터 상태
+  // 검색 상태
   const [searchTerm, setSearchTerm] = useState<string>("");
-  const [showFilters, setShowFilters] = useState<boolean>(false);
+  const [inputValue, setInputValue] = useState<string>("");
 
   // ==========================================================================
   // 쿼리 빌더를 사용한 데이터 조회
   // ==========================================================================
 
-  // 메인 할 일 목록 쿼리 (페이지네이션 + 정렬 + 검색 + 카운트 통합)
+  // 메인 할 일 목록 쿼리 (페이지네이션 + 검색 + 카운트 통합)
+  // 정렬은 클라이언트 사이드에서 처리
   const todosQuery = React.useMemo(() => {
     let query = createSupabaseQuery("tb_todolist").select("*"); // 모든 컬럼 조회
 
@@ -66,12 +72,9 @@ export const TodoPage: React.FC = () => {
       query = query.searchInColumn("title", searchTerm.trim());
     }
 
-    // 정렬 적용
-    if (sortDirection === "asc") {
-      query = query.orderBy(sortColumn);
-    } else {
-      query = query.orderByDesc(sortColumn);
-    }
+    // 정렬은 클라이언트에서 처리하므로 서버 쿼리에서 제외
+    // 기본 정렬을 created_at desc로 설정 (일관성을 위해)
+    query = query.orderByDesc("created_at");
 
     // 페이지네이션 적용
     query = query.paginate({ page: currentPage, size: pageSize });
@@ -80,7 +83,7 @@ export const TodoPage: React.FC = () => {
     query = query.withCount();
 
     return query;
-  }, [currentPage, pageSize, sortColumn, sortDirection, searchTerm]);
+  }, [currentPage, pageSize, searchTerm]); // sortColumn, sortDirection 제거
 
   // 통합 데이터 조회 (데이터 + 총 개수)
   const {
@@ -95,7 +98,7 @@ export const TodoPage: React.FC = () => {
   // ==========================================================================
 
   // 통합 응답에서 데이터와 카운트 분리
-  const todos =
+  const rawTodos =
     result && "data" in result
       ? result.data
       : Array.isArray(result)
@@ -103,9 +106,35 @@ export const TodoPage: React.FC = () => {
       : [];
   const totalCount = result && "totalCount" in result ? result.totalCount : 0;
 
+  // 🎯 클라이언트 사이드 정렬 처리
+  const todos = React.useMemo(() => {
+    if (!rawTodos || !Array.isArray(rawTodos)) return [];
+
+    return [...rawTodos].sort((a, b) => {
+      const aValue = a[sortColumn];
+      const bValue = b[sortColumn];
+
+      // null/undefined 값 처리
+      if (aValue == null && bValue == null) return 0;
+      if (aValue == null) return sortDirection === 'asc' ? -1 : 1;
+      if (bValue == null) return sortDirection === 'asc' ? 1 : -1;
+
+      // 숫자 비교
+      if (typeof aValue === 'number' && typeof bValue === 'number') {
+        return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
+      }
+
+      // 문자열 비교 (날짜 포함)
+      const aStr = String(aValue).toLowerCase();
+      const bStr = String(bValue).toLowerCase();
+      
+      if (aStr < bStr) return sortDirection === 'asc' ? -1 : 1;
+      if (aStr > bStr) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [rawTodos, sortColumn, sortDirection]);
+
   const totalPages = Math.ceil(totalCount / pageSize);
-  const hasNextPage = currentPage < totalPages - 1;
-  const hasPrevPage = currentPage > 0;
 
   // ==========================================================================
   // 뮤테이션 (추가/수정/Soft 삭제)
@@ -147,19 +176,9 @@ export const TodoPage: React.FC = () => {
     setCurrentPage(newPage);
   };
 
-  const handleSortChange = (column: keyof TodoItem) => {
-    if (sortColumn === column) {
-      setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
-    } else {
-      setSortColumn(column);
-      setSortDirection("asc");
-    }
-  };
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setCurrentPage(0); // 검색 시 첫 페이지로 이동
-  };
+
+
 
   const handleRefresh = () => {
     refetch();
@@ -237,6 +256,123 @@ export const TodoPage: React.FC = () => {
   };
 
   // ==========================================================================
+  // 테이블 컬럼 정의
+  // ==========================================================================
+
+  const tableColumns: TableColumn<TodoItem>[] = [
+    {
+      key: 'id',
+      label: 'ID',
+      sortable: true,
+      width: '80px',
+      render: (value: number) => (
+        <Badge bg="secondary" pill>#{value}</Badge>
+      ),
+    },
+    {
+      key: 'title',
+      label: '제목',
+      sortable: true,
+      width: '200px',
+      render: (value: string | null) => (
+        <div className="fw-medium">
+          {value || <span className="text-body-secondary">(제목 없음)</span>}
+        </div>
+      ),
+    },
+    {
+      key: 'description',
+      label: '설명',
+      truncate: true,
+      width: '200px',
+      render: (value: string | null) => (
+        <div>
+          {value ? (
+            <span className="text-body-secondary">
+              {value.length > 50 
+                ? `${value.substring(0, 50)}...`
+                : value
+              }
+            </span>
+          ) : (
+            <span className="text-body-secondary fst-italic">(설명 없음)</span>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'user_email',
+      label: '작성자',
+      truncate: 'sm',
+      width: '150px',
+      render: (value: string | null) => (
+        <div>
+          {value ? (
+            <small className="text-body-secondary">{value}</small>
+          ) : (
+            <span className="text-body-secondary fst-italic">-</span>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'created_at',
+      label: '생성일',
+      sortable: true,
+      width: '160px',
+      render: (value: string) => (
+        <div>
+          <div className="fw-medium">
+            {new Date(value).toLocaleString("ko-KR")}
+          </div>
+          <small className="text-body-secondary">
+            {getRelativeTime(value)}
+          </small>
+        </div>
+      ),
+    },
+    {
+      key: 'updated_at',
+      label: '수정일',
+      sortable: true,
+      width: '160px',
+      render: (value: string | null) => (
+        <div>
+          {value ? (
+            <>
+              <div className="fw-medium">
+                {new Date(value).toLocaleString("ko-KR")}
+              </div>
+              <small className="text-info">
+                {getRelativeTime(value)}
+              </small>
+            </>
+          ) : (
+            <span className="text-body-secondary fst-italic">-</span>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'actions',
+      label: '작업',
+      width: '140px',
+      render: (_, todo: TodoItem) => (
+        <ButtonGroup gap={1} size="sm">
+          <EditButton
+            onClick={() => handleEditTodo(todo)}
+            processing={updateTodo.isPending}
+          />
+          <DeleteButton
+            onClick={() => handleDeleteTodo(todo)}
+            processing={updateTodo.isPending}
+          />
+        </ButtonGroup>
+      ),
+    },
+  ];
+
+  // ==========================================================================
   // 렌더링
   // ==========================================================================
 
@@ -245,26 +381,14 @@ export const TodoPage: React.FC = () => {
       <Container className="py-5">
         <Row className="justify-content-center">
           <Col md={8} lg={6}>
-            <Alert variant="danger" className="text-center">
-              <Alert.Heading>🚨 오류가 발생했습니다</Alert.Heading>
-              <p>할 일 목록을 불러올 수 없습니다.</p>
-              <hr />
-              <div className="d-flex justify-content-center">
-                <Button variant="outline-danger" onClick={handleRefresh}>
-                  다시 시도
-                </Button>
-              </div>
-              <Accordion className="mt-3">
-                <Accordion.Item eventKey="0">
-                  <Accordion.Header>오류 세부사항</Accordion.Header>
-                  <Accordion.Body>
-                    <pre className="text-body-secondary small">
-                      {error instanceof Error ? error.message : "알 수 없는 오류"}
-                    </pre>
-                  </Accordion.Body>
-                </Accordion.Item>
-              </Accordion>
-            </Alert>
+            <ErrorState
+              title="🚨 오류가 발생했습니다"
+              message="할 일 목록을 불러올 수 없습니다."
+              error={error}
+              onRetry={handleRefresh}
+              retryLabel="다시 시도"
+              showErrorDetails
+            />
           </Col>
         </Row>
       </Container>
@@ -282,119 +406,53 @@ export const TodoPage: React.FC = () => {
               <Row className="align-items-center mb-3">
                 <Col>
                   <h1 className="h3 fw-bold mb-1">📝 할 일 목록</h1>
-                  <div className="d-flex align-items-center gap-3">
-                    <Badge bg="primary" pill>총 {totalCount}개</Badge>
-                    {(isLoading || updateTodo.isPending || createTodo.isPending) && (
-                      <div className="d-flex align-items-center text-body-secondary">
-                        <Spinner size="sm" className="me-2" />
-                        {isLoading && "로딩 중..."}
-                        {updateTodo.isPending && "처리 중..."} {/* 수정/삭제 모두 updateTodo 사용 */}
-                        {createTodo.isPending && "생성 중..."}
-                      </div>
-                    )}
-                  </div>
+                  <TodoStats
+                    totalCount={totalCount}
+                    isLoading={isLoading}
+                    isUpdating={updateTodo.isPending}
+                    isCreating={createTodo.isPending}
+                  />
                 </Col>
               </Row>
 
               {/* 검색 및 액션 버튼 */}
               <Row className="g-3">
                 <Col md={6}>
-                  <Form onSubmit={handleSearchSubmit}>
-                    <InputGroup>
-                      <Form.Control
-                        type="text"
-                        placeholder="제목으로 검색 (예: 할 일)"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                      />
-                      <Button variant="outline-secondary" type="submit">
-                        🔍
-                      </Button>
-                      {searchTerm && (
-                        <Button
-                          variant="outline-danger"
-                          onClick={() => {
-                            setSearchTerm("");
-                            setCurrentPage(0);
-                          }}
-                        >
-                          ✕
-                        </Button>
-                      )}
-                    </InputGroup>
-                  </Form>
+                  <SearchForm
+                    value={inputValue}
+                    onChange={(value) => {
+                      setInputValue(value);
+                    }}
+                    onSubmit={() => {
+                      setSearchTerm(inputValue);
+                      setCurrentPage(0);
+                    }}
+                    onClear={() => {
+                      setInputValue("");
+                      setSearchTerm("");
+                      setCurrentPage(0);
+                    }}
+                    placeholder="제목으로 검색 (예: 할 일)"
+                    disabled={isLoading || updateTodo.isPending || createTodo.isPending}
+                  />
                 </Col>
                 <Col md={6}>
-                  <div className="d-flex gap-2 justify-content-md-end">
-                    <Button
-                      variant="outline-secondary"
-                      size="sm"
-                      onClick={() => setShowFilters(!showFilters)}
-                    >
-                      ⚙️ 필터
-                    </Button>
-                    <Button
-                      variant="outline-primary"
-                      size="sm"
+                  <ButtonGroup gap={2} justify="end" size="sm">
+                    <RefreshButton
                       onClick={handleRefresh}
-                      disabled={isLoading || updateTodo.isPending || createTodo.isPending}
-                    >
-                      {isLoading ? "⏳" : "🔄"} 새로고침
-                    </Button>
+                      loading={isLoading}
+                      disabled={updateTodo.isPending || createTodo.isPending}
+                    />
                     <Button
                       variant="primary"
-                      size="sm"
                       onClick={handleCreateTodo}
                       disabled={createTodo.isPending}
                     >
                       {createTodo.isPending ? "⏳" : "➕"} 만들기
                     </Button>
-                  </div>
+                  </ButtonGroup>
                 </Col>
               </Row>
-
-              {/* 필터 패널 */}
-              {showFilters && (
-                <Row className="mt-3">
-                  <Col>
-                    <Card className="bg-body-secondary border-0">
-                      <Card.Body className="py-3">
-                        <Row className="g-3 align-items-center">
-                          <Col auto>
-                            <Form.Label className="mb-0 fw-semibold">정렬 기준:</Form.Label>
-                          </Col>
-                          <Col auto>
-                            <Form.Select
-                              size="sm"
-                              value={sortColumn}
-                              onChange={(e) =>
-                                setSortColumn(e.target.value as keyof TodoItem)
-                              }
-                            >
-                              <option value="id">ID</option>
-                              <option value="title">제목</option>
-                              <option value="created_at">생성일</option>
-                              <option value="updated_at">수정일</option>
-                            </Form.Select>
-                          </Col>
-                          <Col auto>
-                            <Form.Select
-                              size="sm"
-                              value={sortDirection}
-                              onChange={(e) =>
-                                setSortDirection(e.target.value as "asc" | "desc")
-                              }
-                            >
-                              <option value="asc">오름차순</option>
-                              <option value="desc">내림차순</option>
-                            </Form.Select>
-                          </Col>
-                        </Row>
-                      </Card.Body>
-                    </Card>
-                  </Col>
-                </Row>
-              )}
             </Card.Body>
           </Card>
         </Col>
@@ -403,7 +461,8 @@ export const TodoPage: React.FC = () => {
       {/* 할 일 목록 */}
       <Row>
         <Col>
-          {isLoading && todos === undefined ? (
+          {isLoading && !result ? (
+            // 첫 로딩이나 페이지 이동시 스피너 표시
             <Card className="border-0 shadow-sm">
               <Card.Body className="text-center py-5">
                 <Spinner className="mb-3" />
@@ -411,224 +470,59 @@ export const TodoPage: React.FC = () => {
               </Card.Body>
             </Card>
           ) : todos && Array.isArray(todos) && todos.length > 0 ? (
-            <Card className="border-0 shadow-sm">
-              <Table responsive hover className="mb-0">
-                <thead className="table-light">
-                  <tr>
-                    <th 
-                      style={{ cursor: 'pointer' }}
-                      onClick={() => handleSortChange("id")}
-                    >
-                      ID{" "}
-                      {sortColumn === "id" && (
-                        <span className="text-primary">
-                          {sortDirection === "asc" ? "↑" : "↓"}
-                        </span>
-                      )}
-                    </th>
-                    <th 
-                      style={{ cursor: 'pointer' }}
-                      onClick={() => handleSortChange("title")}
-                    >
-                      제목{" "}
-                      {sortColumn === "title" && (
-                        <span className="text-primary">
-                          {sortDirection === "asc" ? "↑" : "↓"}
-                        </span>
-                      )}
-                    </th>
-                    <th>설명</th>
-                    <th>작성자</th>
-                    <th 
-                      style={{ cursor: 'pointer' }}
-                      onClick={() => handleSortChange("created_at")}
-                    >
-                      생성일{" "}
-                      {sortColumn === "created_at" && (
-                        <span className="text-primary">
-                          {sortDirection === "asc" ? "↑" : "↓"}
-                        </span>
-                      )}
-                    </th>
-                    <th 
-                      style={{ cursor: 'pointer' }}
-                      onClick={() => handleSortChange("updated_at")}
-                    >
-                      수정일{" "}
-                      {sortColumn === "updated_at" && (
-                        <span className="text-primary">
-                          {sortDirection === "asc" ? "↑" : "↓"}
-                        </span>
-                      )}
-                    </th>
-                    <th>작업</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {todos.map((todo) => (
-                    <tr key={todo.id}>
-                      <td>
-                        <Badge bg="secondary" pill>#{todo.id}</Badge>
-                      </td>
-                      <td>
-                        <div className="fw-medium">
-                          {todo.title || <span className="text-body-secondary">(제목 없음)</span>}
-                        </div>
-                      </td>
-                      <td>
-                        <div style={{ maxWidth: '200px' }}>
-                          {todo.description ? (
-                            <span className="text-body-secondary">
-                              {todo.description.length > 50 
-                                ? `${todo.description.substring(0, 50)}...`
-                                : todo.description
-                              }
-                            </span>
-                          ) : (
-                            <span className="text-body-secondary fst-italic">(설명 없음)</span>
-                          )}
-                        </div>
-                      </td>
-                      <td>
-                        <div style={{ maxWidth: '150px' }}>
-                          {todo.user_email ? (
-                            <small className="text-body-secondary">
-                              {todo.user_email}
-                            </small>
-                          ) : (
-                            <span className="text-body-secondary fst-italic">-</span>
-                          )}
-                        </div>
-                      </td>
-                      <td>
-                        <div>
-                          <div className="fw-medium">
-                            {new Date(todo.created_at).toLocaleString("ko-KR")}
-                          </div>
-                          <small className="text-body-secondary">
-                            {getRelativeTime(todo.created_at)}
-                          </small>
-                        </div>
-                      </td>
-                      <td>
-                        <div>
-                          {todo.updated_at ? (
-                            <>
-                              <div className="fw-medium">
-                                {new Date(todo.updated_at).toLocaleString("ko-KR")}
-                              </div>
-                              <small className="text-info">
-                                {getRelativeTime(todo.updated_at)}
-                              </small>
-                            </>
-                          ) : (
-                            <span className="text-body-secondary fst-italic">-</span>
-                          )}
-                        </div>
-                      </td>
-                      <td>
-                        <div className="d-flex gap-1">
-                          <Button 
-                            variant="outline-primary" 
-                            size="sm"
-                            onClick={() => handleEditTodo(todo)}
-                            disabled={updateTodo.isPending}
-                          >
-                            {updateTodo.isPending ? "⏳" : "✏️"} 수정
-                          </Button>
-                          <Button 
-                            variant="outline-danger" 
-                            size="sm"
-                            onClick={() => handleDeleteTodo(todo)}
-                            disabled={updateTodo.isPending}
-                          >
-                            {updateTodo.isPending ? "⏳" : "🗑️"} 삭제
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
-            </Card>
+            // 데이터가 있을 때 테이블 표시
+            <ResponsiveTable
+              columns={tableColumns}
+              data={todos}
+              onSort={(column, direction) => {
+                setSortColumn(column as keyof TodoItem);
+                setSortDirection(direction);
+              }}
+              sortColumn={sortColumn}
+              sortDirection={sortDirection}
+              loading={isLoading}
+              keyExtractor={(todo) => todo.id}
+              minWidth="900px"
+              ariaLabel="할 일 목록 테이블"
+              emptyMessage="데이터가 없습니다."
+            />
           ) : (
-            <Card className="border-0 shadow-sm">
-              <Card.Body className="text-center py-5">
-                <div className="display-1 mb-3">📝</div>
-                <h4 className="mb-3">할 일이 없습니다</h4>
-                <p className="text-body-secondary mb-4">
-                  {searchTerm
-                    ? `"${searchTerm}"에 대한 검색 결과가 없습니다.`
-                    : "첫 번째 할 일을 추가해보세요!"}
-                </p>
-                {!searchTerm && (
-                  <Button 
-                    variant="primary" 
-                    onClick={handleCreateTodo}
-                    disabled={createTodo.isPending}
-                  >
-                    {createTodo.isPending ? "⏳" : "➕"} 첫 할 일 만들기
-                  </Button>
-                )}
-              </Card.Body>
-            </Card>
+            // 데이터가 없을 때만 EmptyState 표시
+            <EmptyState
+              icon="📝"
+              title="할 일이 없습니다"
+              description={
+                searchTerm
+                  ? `"${searchTerm}"에 대한 검색 결과가 없습니다.`
+                  : inputValue
+                  ? `"${inputValue}" 검색 중... 잠시 기다려주세요.`
+                  : "첫 번째 할 일을 추가해보세요!"
+              }
+              action={
+                !searchTerm && !inputValue
+                  ? {
+                      label: createTodo.isPending ? "⏳ 생성 중..." : "➕ 첫 할 일 만들기",
+                      onClick: handleCreateTodo,
+                      variant: "primary",
+                      disabled: createTodo.isPending,
+                    }
+                  : undefined
+              }
+            />
           )}
         </Col>
       </Row>
 
       {/* 페이지네이션 */}
-      {totalPages > 1 && (
-        <Row className="mt-4">
-          <Col>
-            <Card className="border-0 shadow-sm">
-              <Card.Body>
-                <Row className="align-items-center">
-                  <Col>
-                    <small className="text-body-secondary">
-                      {currentPage * pageSize + 1}-
-                      {Math.min((currentPage + 1) * pageSize, totalCount)} / {totalCount}개 표시
-                    </small>
-                  </Col>
-                  <Col xs="auto">
-                    <Pagination className="mb-0" size="sm">
-                      <Pagination.First 
-                        onClick={() => handlePageChange(0)}
-                        disabled={!hasPrevPage}
-                      />
-                      <Pagination.Prev 
-                        onClick={() => handlePageChange(currentPage - 1)}
-                        disabled={!hasPrevPage}
-                      />
-                      
-                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                        const pageNum = Math.max(0, Math.min(totalPages - 5, currentPage - 2)) + i;
-                        return (
-                          <Pagination.Item
-                            key={pageNum}
-                            active={pageNum === currentPage}
-                            onClick={() => handlePageChange(pageNum)}
-                          >
-                            {pageNum + 1}
-                          </Pagination.Item>
-                        );
-                      })}
-                      
-                      <Pagination.Next 
-                        onClick={() => handlePageChange(currentPage + 1)}
-                        disabled={!hasNextPage}
-                      />
-                      <Pagination.Last 
-                        onClick={() => handlePageChange(totalPages - 1)}
-                        disabled={!hasNextPage}
-                      />
-                    </Pagination>
-                  </Col>
-                </Row>
-              </Card.Body>
-            </Card>
-          </Col>
-        </Row>
-      )}
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalCount={totalCount}
+        pageSize={pageSize}
+        onPageChange={handlePageChange}
+        itemUnit="개"
+        variant="card"
+      />
     </Container>
   );
 };
@@ -637,28 +531,6 @@ export const TodoPage: React.FC = () => {
 // 유틸리티 함수들
 // =============================================================================
 
-/**
- * 상대적 시간 표시 (예: "3분 전", "1시간 전")
- */
-function getRelativeTime(dateString: string): string {
-  const now = new Date();
-  const date = new Date(dateString);
-  const diffMs = now.getTime() - date.getTime();
 
-  const diffSeconds = Math.floor(diffMs / 1000);
-  const diffMinutes = Math.floor(diffSeconds / 60);
-  const diffHours = Math.floor(diffMinutes / 60);
-  const diffDays = Math.floor(diffHours / 24);
-
-  if (diffDays > 0) {
-    return `${diffDays}일 전`;
-  } else if (diffHours > 0) {
-    return `${diffHours}시간 전`;
-  } else if (diffMinutes > 0) {
-    return `${diffMinutes}분 전`;
-  } else {
-    return "방금 전";
-  }
-}
 
 export default TodoPage;
