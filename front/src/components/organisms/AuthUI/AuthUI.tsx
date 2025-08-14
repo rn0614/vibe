@@ -6,12 +6,10 @@ import styles from "./AuthUI.module.scss";
 export interface AuthUIProps {
   view?: "sign_in" | "sign_up" | "forgotten_password";
   className?: string;
-  redirectTo?: string;
 }
 
 export const AuthUI: React.FC<AuthUIProps> = ({
   view = "sign_in",
-  redirectTo,
 }) => {
   return (
     <Auth
@@ -77,9 +75,8 @@ export const AuthUI: React.FC<AuthUIProps> = ({
         },
       }}
       theme="default"
-      providers={["google", "github", "facebook"]}
+      providers={["google"]} /*, "github", "facebook" */
       onlyThirdPartyProviders={true}
-      redirectTo={redirectTo}
       localization={{
         variables: {
           sign_in: {
