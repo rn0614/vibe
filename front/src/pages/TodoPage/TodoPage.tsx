@@ -4,6 +4,7 @@ import {
   useSupabaseQueryBuilder,
   useSupabaseMutationBuilder,
 } from "@/domains/supabaseCommon/hooks/useSupabaseQueryBuilderV2";
+import { useAuth } from "@/domains/auth/hooks/useAuth";
 import { 
   Container, 
   Row, 
@@ -24,15 +25,19 @@ import type { Tables } from "@/shared/types/database";
  * 할 일 목록 페이지
  *
  * 새로운 타입 안전한 Query Builder를 사용하여:
- * - 할 일 목록 조회
+ * - 할 일 목록 조회 (Soft Delete 적용: deleted_at이 null인 항목만)
  * - 페이지네이션
  * - 정렬 및 필터링
  * - 실시간 업데이트
+ * - Soft Delete 삭제 (deleted_at에 현재 시간 설정)
  */
 
 type TodoItem = Tables<"tb_todolist">;
 
 export const TodoPage: React.FC = () => {
+  // 인증 상태
+  const { user } = useAuth();
+
   // 페이지네이션 상태
   const [currentPage, setCurrentPage] = useState<number>(0);
   const [pageSize] = useState<number>(10);
@@ -53,9 +58,12 @@ export const TodoPage: React.FC = () => {
   const todosQuery = React.useMemo(() => {
     let query = createSupabaseQuery("tb_todolist").select("*"); // 모든 컬럼 조회
 
-    // 검색어가 있으면 created_at 필드에서 검색
+    // 🗑️ Soft Delete: 삭제되지 않은 레코드만 조회 (필수!)
+    query = query.where("deleted_at", "is", null);
+
+    // 검색어가 있으면 title 필드에서 검색
     if (searchTerm.trim()) {
-      query = query.searchInColumn("created_at", searchTerm.trim());
+      query = query.searchInColumn("title", searchTerm.trim());
     }
 
     // 정렬 적용
@@ -100,14 +108,36 @@ export const TodoPage: React.FC = () => {
   const hasPrevPage = currentPage > 0;
 
   // ==========================================================================
-  // 뮤테이션 (나중에 추가/수정/삭제용)
+  // 뮤테이션 (추가/수정/Soft 삭제)
   // ==========================================================================
 
   const createTodo = useSupabaseMutationBuilder("tb_todolist", "insert", {
     onSuccess: () => {
       refetch(); // 목록 새로고침
     },
+    onError: (error) => {
+      alert(`할 일 생성 실패: ${error.message}`);
+    },
   });
+
+  const updateTodo = useSupabaseMutationBuilder("tb_todolist", "update", {
+    onSuccess: () => {
+      refetch(); // 목록 새로고침
+    },
+    onError: (error) => {
+      alert(`할 일 수정 실패: ${error.message}`);
+    },
+  });
+
+  // 🗑️ Soft Delete: delete 뮤테이션 사용하지 않음 (update 뮤테이션 사용)
+  // const deleteTodo = useSupabaseMutationBuilder("tb_todolist", "delete", {
+  //   onSuccess: () => {
+  //     refetch(); // 목록 새로고침
+  //   },
+  //   onError: (error) => {
+  //     alert(`할 일 삭제 실패: ${error.message}`);
+  //   },
+  // });
 
   // ==========================================================================
   // 이벤트 핸들러들
@@ -133,6 +163,77 @@ export const TodoPage: React.FC = () => {
 
   const handleRefresh = () => {
     refetch();
+  };
+
+  const handleEditTodo = (todo: TodoItem) => {
+    // 🗑️ 이미 삭제된 항목인지 확인 (Soft Delete 정책)
+    if (todo.deleted_at !== null) {
+      alert('삭제된 할 일은 수정할 수 없습니다.');
+      return;
+    }
+
+    // 제목 수정
+    const newTitle = window.prompt(
+      `할 일 제목을 수정하세요:`,
+      todo.title || ''
+    );
+    
+    if (newTitle !== null && newTitle.trim() !== todo.title) {
+      // 설명도 함께 수정할지 물어보기
+      const newDescription = window.prompt(
+        `설명도 수정하시겠습니까? (취소하면 제목만 수정됩니다)`,
+        todo.description || ''
+      );
+      
+      updateTodo.mutate({
+        id: todo.id.toString(),
+        data: {
+          title: newTitle.trim() || null,
+          description: newDescription !== null ? (newDescription.trim() || null) : todo.description,
+          updated_at: new Date().toISOString(),
+        },
+      });
+    }
+  };
+
+  const handleDeleteTodo = (todo: TodoItem) => {
+    // 🗑️ 이미 삭제된 항목인지 확인 (Soft Delete 정책)
+    if (todo.deleted_at !== null) {
+      alert('이미 삭제된 할 일입니다.');
+      return;
+    }
+
+    const shouldDelete = window.confirm(
+      `할 일 #${todo.id}을(를) 정말 삭제하시겠습니까?\n\n제목: ${todo.title || '(제목 없음)'}\n생성일: ${new Date(todo.created_at).toLocaleString("ko-KR")}\n\n※ 삭제된 할 일은 휴지통에서 복구할 수 있습니다.`
+    );
+    
+    if (shouldDelete) {
+      // 🗑️ Soft Delete: deleted_at에 현재 시간 설정
+      updateTodo.mutate({
+        id: todo.id.toString(),
+        data: {
+          deleted_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+      });
+    }
+  };
+
+  const handleCreateTodo = () => {
+    const title = window.prompt("새 할 일의 제목을 입력하세요:");
+    
+    if (title !== null && title.trim()) {
+      const description = window.prompt("설명을 입력하세요 (선택사항):");
+      
+      createTodo.mutate({
+        data: {
+          title: title.trim(),
+          description: description?.trim() || null,
+          user_email: user?.email || null,
+          created_at: new Date().toISOString(),
+        },
+      });
+    }
   };
 
   // ==========================================================================
@@ -183,10 +284,12 @@ export const TodoPage: React.FC = () => {
                   <h1 className="h3 fw-bold mb-1">📝 할 일 목록</h1>
                   <div className="d-flex align-items-center gap-3">
                     <Badge bg="primary" pill>총 {totalCount}개</Badge>
-                    {isLoading && (
+                    {(isLoading || updateTodo.isPending || createTodo.isPending) && (
                       <div className="d-flex align-items-center text-body-secondary">
                         <Spinner size="sm" className="me-2" />
-                        로딩 중...
+                        {isLoading && "로딩 중..."}
+                        {updateTodo.isPending && "처리 중..."} {/* 수정/삭제 모두 updateTodo 사용 */}
+                        {createTodo.isPending && "생성 중..."}
                       </div>
                     )}
                   </div>
@@ -200,7 +303,7 @@ export const TodoPage: React.FC = () => {
                     <InputGroup>
                       <Form.Control
                         type="text"
-                        placeholder="날짜로 검색 (예: 2024)"
+                        placeholder="제목으로 검색 (예: 할 일)"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                       />
@@ -234,16 +337,17 @@ export const TodoPage: React.FC = () => {
                       variant="outline-primary"
                       size="sm"
                       onClick={handleRefresh}
-                      disabled={isLoading}
+                      disabled={isLoading || updateTodo.isPending || createTodo.isPending}
                     >
-                      🔄 새로고침
+                      {isLoading ? "⏳" : "🔄"} 새로고침
                     </Button>
                     <Button
                       variant="primary"
                       size="sm"
-                      onClick={() => createTodo.mutate({})}
+                      onClick={handleCreateTodo}
+                      disabled={createTodo.isPending}
                     >
-                      ➕ 만들기
+                      {createTodo.isPending ? "⏳" : "➕"} 만들기
                     </Button>
                   </div>
                 </Col>
@@ -268,7 +372,9 @@ export const TodoPage: React.FC = () => {
                               }
                             >
                               <option value="id">ID</option>
+                              <option value="title">제목</option>
                               <option value="created_at">생성일</option>
+                              <option value="updated_at">수정일</option>
                             </Form.Select>
                           </Col>
                           <Col auto>
@@ -322,10 +428,34 @@ export const TodoPage: React.FC = () => {
                     </th>
                     <th 
                       style={{ cursor: 'pointer' }}
+                      onClick={() => handleSortChange("title")}
+                    >
+                      제목{" "}
+                      {sortColumn === "title" && (
+                        <span className="text-primary">
+                          {sortDirection === "asc" ? "↑" : "↓"}
+                        </span>
+                      )}
+                    </th>
+                    <th>설명</th>
+                    <th>작성자</th>
+                    <th 
+                      style={{ cursor: 'pointer' }}
                       onClick={() => handleSortChange("created_at")}
                     >
                       생성일{" "}
                       {sortColumn === "created_at" && (
+                        <span className="text-primary">
+                          {sortDirection === "asc" ? "↑" : "↓"}
+                        </span>
+                      )}
+                    </th>
+                    <th 
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => handleSortChange("updated_at")}
+                    >
+                      수정일{" "}
+                      {sortColumn === "updated_at" && (
                         <span className="text-primary">
                           {sortDirection === "asc" ? "↑" : "↓"}
                         </span>
@@ -341,6 +471,36 @@ export const TodoPage: React.FC = () => {
                         <Badge bg="secondary" pill>#{todo.id}</Badge>
                       </td>
                       <td>
+                        <div className="fw-medium">
+                          {todo.title || <span className="text-body-secondary">(제목 없음)</span>}
+                        </div>
+                      </td>
+                      <td>
+                        <div style={{ maxWidth: '200px' }}>
+                          {todo.description ? (
+                            <span className="text-body-secondary">
+                              {todo.description.length > 50 
+                                ? `${todo.description.substring(0, 50)}...`
+                                : todo.description
+                              }
+                            </span>
+                          ) : (
+                            <span className="text-body-secondary fst-italic">(설명 없음)</span>
+                          )}
+                        </div>
+                      </td>
+                      <td>
+                        <div style={{ maxWidth: '150px' }}>
+                          {todo.user_email ? (
+                            <small className="text-body-secondary">
+                              {todo.user_email}
+                            </small>
+                          ) : (
+                            <span className="text-body-secondary fst-italic">-</span>
+                          )}
+                        </div>
+                      </td>
+                      <td>
                         <div>
                           <div className="fw-medium">
                             {new Date(todo.created_at).toLocaleString("ko-KR")}
@@ -351,12 +511,38 @@ export const TodoPage: React.FC = () => {
                         </div>
                       </td>
                       <td>
+                        <div>
+                          {todo.updated_at ? (
+                            <>
+                              <div className="fw-medium">
+                                {new Date(todo.updated_at).toLocaleString("ko-KR")}
+                              </div>
+                              <small className="text-info">
+                                {getRelativeTime(todo.updated_at)}
+                              </small>
+                            </>
+                          ) : (
+                            <span className="text-body-secondary fst-italic">-</span>
+                          )}
+                        </div>
+                      </td>
+                      <td>
                         <div className="d-flex gap-1">
-                          <Button variant="outline-primary" size="sm">
-                            ✏️ 수정
+                          <Button 
+                            variant="outline-primary" 
+                            size="sm"
+                            onClick={() => handleEditTodo(todo)}
+                            disabled={updateTodo.isPending}
+                          >
+                            {updateTodo.isPending ? "⏳" : "✏️"} 수정
                           </Button>
-                          <Button variant="outline-danger" size="sm">
-                            🗑️ 삭제
+                          <Button 
+                            variant="outline-danger" 
+                            size="sm"
+                            onClick={() => handleDeleteTodo(todo)}
+                            disabled={updateTodo.isPending}
+                          >
+                            {updateTodo.isPending ? "⏳" : "🗑️"} 삭제
                           </Button>
                         </div>
                       </td>
@@ -378,9 +564,10 @@ export const TodoPage: React.FC = () => {
                 {!searchTerm && (
                   <Button 
                     variant="primary" 
-                    onClick={() => createTodo.mutate({})}
+                    onClick={handleCreateTodo}
+                    disabled={createTodo.isPending}
                   >
-                    ➕ 첫 할 일 만들기
+                    {createTodo.isPending ? "⏳" : "➕"} 첫 할 일 만들기
                   </Button>
                 )}
               </Card.Body>

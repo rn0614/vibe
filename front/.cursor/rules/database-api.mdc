@@ -1,0 +1,443 @@
+# Database & API Rules
+
+## ⚠️ 필수 확인사항
+
+**데이터베이스 관련 작업을 시작하기 전에 반드시 다음 파일을 확인하세요:**
+
+📁 **`front/src/shared/types/database.ts`**
+
+이 파일은 Supabase에서 자동 생성된 **실제 데이터베이스 스키마**입니다.
+- 모든 테이블 구조와 타입 정보가 포함되어 있습니다
+- 추측이나 가정 대신 **이 파일을 기준**으로 작업하세요
+- 새로운 기능 구현 시 반드시 이 파일부터 확인하세요
+
+```typescript
+// ✅ 올바른 방법: database.ts에서 실제 스키마 확인
+import type { Tables } from '@/shared/types/database';
+type TodoItem = Tables<'tb_todolist'>; // 실제 스키마 활용
+
+// ❌ 잘못된 방법: 추측으로 타입 정의
+interface TodoItem {
+  id: number;
+  created_at: string;
+  // 다른 필드들이 있을 수 있음!
+}
+```
+
+## 🗑️ Soft Delete 정책 (필수 준수)
+
+**모든 테이블에 `deleted_at` 필드가 있는 경우 반드시 Soft Delete를 사용하세요.**
+
+### 기본 원칙
+```typescript
+// ✅ 조회 시: deleted_at이 null인 레코드만 조회
+query = query.where('deleted_at', 'is', null);
+
+// ✅ 삭제 시: deleted_at에 현재 시간 설정 (Soft Delete)
+updateTodo.mutate({
+  id: todoId,
+  data: { deleted_at: new Date().toISOString() }
+});
+
+// ❌ 절대 금지: 실제 DELETE 사용
+// deleteTodo.mutate({ id: todoId }); // 사용 금지!
+```
+
+### Query Builder에서 Soft Delete 적용
+```typescript
+// 모든 조회 쿼리에 자동으로 deleted_at 필터 적용
+const activeTodosQuery = createSupabaseQuery('tb_todolist')
+  .select('*')
+  .where('deleted_at', 'is', null) // 필수!
+  .orderByDesc('created_at');
+
+// 업데이트 시에도 삭제되지 않은 레코드만 대상
+const updateQuery = createSupabaseQuery('tb_todolist')
+  .update({ title: 'new title', updated_at: new Date().toISOString() })
+  .where('id', 'eq', todoId)
+  .where('deleted_at', 'is', null); // 필수!
+```
+
+### 삭제 함수 패턴
+```typescript
+// ✅ Soft Delete 함수
+const softDeleteTodo = (todoId: string) => {
+  updateTodo.mutate({
+    id: todoId,
+    data: {
+      deleted_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+  });
+};
+
+// 🔧 Hard Delete (관리자 전용, 특별한 경우만)
+const hardDeleteTodo = (todoId: string) => {
+  // 일반 사용자는 사용 금지
+  // 관리자 권한 확인 후에만 사용
+  if (!isAdmin) throw new Error('권한 없음');
+  deleteTodo.mutate({ id: todoId });
+};
+```
+
+## Supabase 스키마 및 설정
+
+### 데이터베이스 타입 생성
+```bash
+# Supabase 스키마에서 TypeScript 타입 자동 생성
+npm run supabase:types
+```
+
+이 명령어는 `src/shared/types/database.ts`에 타입을 생성합니다.
+
+### Supabase 클라이언트 설정
+```typescript
+// src/shared/api/supabase.ts
+import { createClient } from '@supabase/supabase-js';
+import type { Database } from '@/shared/types/database';
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+// 환경 변수 검증 (필수)
+if (!supabaseUrl || !supabaseKey) {
+  throw new Error('VITE_SUPABASE_URL과 VITE_SUPABASE_ANON_KEY 환경변수가 필요합니다.');
+}
+
+// 타입 안전한 클라이언트 생성
+export const supabase = createClient<Database>(supabaseUrl, supabaseKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+  },
+});
+```
+
+## Database.ts 활용법
+
+### 타입 추출 및 사용
+```typescript
+import type { Database, Tables, TablesInsert, TablesUpdate } from '@/shared/types/database';
+
+// 테이블 Row 타입 추출
+type TodoItem = Tables<'tb_todolist'>;
+type User = Tables<'users'>;
+
+// Insert 타입 추출 (자동 생성 필드 제외)
+type NewTodoItem = TablesInsert<'tb_todolist'>;
+
+// Update 타입 추출 (부분 업데이트)
+type TodoItemUpdate = TablesUpdate<'tb_todolist'>;
+
+// 사용 예시
+const createTodo = async (todo: NewTodoItem): Promise<TodoItem> => {
+  const { data, error } = await supabase
+    .from('tb_todolist')
+    .insert(todo)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+};
+```
+
+## API 패턴
+
+### API 응답 래퍼
+```typescript
+// src/shared/api/client.ts
+
+// 통일된 API 응답 형태
+export interface ApiResponse<T = unknown> {
+  data: T;
+  message?: string;
+  status: number;
+}
+
+// API 래퍼 함수 - 모든 Supabase 요청에 사용
+export const apiWrapper = async <T>(
+  request: () => Promise<{ data: T; error: unknown }>
+): Promise<ApiResponse<T>> => {
+  try {
+    const { data, error } = await request();
+    
+    if (error) {
+      // Supabase 에러 타입별 처리
+      if (isAuthError(error)) {
+        throw ApiException.fromAuthError(error);
+      }
+      
+      if (error && typeof error === 'object' && 'code' in error) {
+        throw ApiException.fromPostgrestError(error as PostgrestError);
+      }
+      
+      throw new ApiException(400, '알 수 없는 오류가 발생했습니다.');
+    }
+
+    return { data, status: 200, message: 'success' };
+  } catch (error) {
+    if (error instanceof ApiException) throw error;
+    throw new ApiException(500, '서버 오류가 발생했습니다.');
+  }
+};
+```
+
+### API 에러 클래스
+```typescript
+export class ApiException extends Error {
+  public status: number;
+  public code?: string;
+  public details?: unknown;
+  public hint?: string;
+
+  // Supabase AuthError 변환
+  static fromAuthError(error: AuthError): ApiException {
+    const statusMap: Record<string, number> = {
+      'invalid_credentials': 401,
+      'email_not_confirmed': 422,
+      'signup_disabled': 403,
+      'weak_password': 400,
+      'rate_limit_exceeded': 429,
+    };
+
+    return new ApiException(
+      statusMap[error.message] || 400,
+      error.message,
+      error.message,
+      error
+    );
+  }
+
+  // Supabase PostgrestError 변환
+  static fromPostgrestError(error: PostgrestError): ApiException {
+    return new ApiException(400, error.message, error.code, error.details, error.hint);
+  }
+}
+```
+
+### CRUD API 패턴
+```typescript
+// 타입 안전한 CRUD API 생성 팩토리
+export const createCrudApi = <T extends Record<string, any>>(tableName: string) => {
+  return {
+    findAll: async (): Promise<ApiResponse<T[]>> => {
+      const response = await supabase.from(tableName).select('*');
+      return apiWrapper(() => Promise.resolve(response));
+    },
+      
+    findById: async (id: string): Promise<ApiResponse<T>> => {
+      const response = await supabase.from(tableName).select('*').eq('id', id).single();
+      return apiWrapper(() => Promise.resolve(response));
+    },
+      
+    create: async (data: Omit<T, 'id' | 'created_at' | 'updated_at'>): Promise<ApiResponse<T>> => {
+      const response = await supabase.from(tableName).insert(data).select().single();
+      return apiWrapper(() => Promise.resolve(response));
+    },
+      
+    update: async (id: string, data: Partial<T>): Promise<ApiResponse<T>> => {
+      const response = await supabase.from(tableName).update(data).eq('id', id).select().single();
+      return apiWrapper(() => Promise.resolve(response));
+    },
+      
+    delete: async (id: string): Promise<ApiResponse<void>> => {
+      const response = await supabase.from(tableName).delete().eq('id', id);
+      return apiWrapper(() => Promise.resolve(response));
+    },
+  };
+};
+
+// 사용 예시
+type TodoItem = Tables<'tb_todolist'>;
+export const todoApi = createCrudApi<TodoItem>('tb_todolist');
+```
+
+## Query Builder 패턴
+
+### Supabase Query Builder 사용
+```typescript
+// src/domains/supabaseCommon/hooks/useSupabaseQuery.ts
+
+// 체이닝 가능한 Query Builder
+export const createSupabaseQuery = <T = unknown>(table: string): SupabaseQueryBuilder<T> => {
+  return new SupabaseQueryBuilder<T>(table);
+};
+
+// 기본 사용 예시
+const usersQuery = createSupabaseQuery('users')
+  .select('id, name, email, avatar_url')
+  .where('status', 'eq', 'active')
+  .search(['name', 'email'], searchTerm)
+  .paginate({ page: 0, size: 20 })
+  .sort('created_at', 'desc');
+
+// TanStack Query와 통합
+const { data: users, isLoading } = useSupabaseQueryBuilder(usersQuery, {
+  enabled: !!searchTerm
+});
+```
+
+### 조건부 쿼리 생성
+```typescript
+const createConditionalQuery = <T = unknown>(
+  table: string,
+  conditions: {
+    select?: string;
+    where?: Array<{ column: string; operator: string; value: unknown }>;
+    search?: { columns: string[]; term: string };
+    sort?: Array<{ column: string; direction: 'asc' | 'desc' }>;
+    pagination?: { page: number; size: number };
+    single?: boolean;
+  }
+): SupabaseQueryBuilder<T> => {
+  // 조건에 따라 동적 쿼리 생성
+};
+```
+
+## 에러 핸들링
+
+### PostgreSQL 에러 코드 매핑
+```typescript
+export const handleSupabaseError = (error: unknown): never => {
+  if (error && typeof error === 'object' && 'code' in error) {
+    const pgError = error as PostgrestError;
+    
+    switch (pgError.code) {
+      case '23505': // unique_violation
+        throw new ApiException(409, '이미 존재하는 데이터입니다.');
+      case '23503': // foreign_key_violation
+        throw new ApiException(400, '참조된 데이터가 존재하지 않습니다.');
+      case '42501': // insufficient_privilege
+        throw new ApiException(403, '권한이 없습니다.');
+      case '23514': // check_violation
+        throw new ApiException(400, '데이터 형식이 올바르지 않습니다.');
+      default:
+        throw new ApiException(400, pgError.message, pgError.code);
+    }
+  }
+  
+  throw new ApiException(500, '알 수 없는 오류가 발생했습니다.');
+};
+```
+
+## RLS (Row Level Security) 적용
+
+### RLS 정책 예시 (SQL)
+```sql
+-- 테이블에 RLS 활성화
+ALTER TABLE todos ENABLE ROW LEVEL SECURITY;
+
+-- 사용자는 자신의 데이터만 접근 가능
+CREATE POLICY "Users can manage own data" ON todos
+  USING (auth.uid() = user_id);
+```
+
+### RLS 적용 시 프론트엔드 패턴
+```typescript
+// 인증된 상태에서만 데이터 접근
+const { user } = useAuth();
+
+const todosQuery = createSupabaseQuery('todos')
+  .select('*')
+  .where('user_id', 'eq', user?.id) // RLS가 자동으로 필터링하지만 명시적 추가 권장
+  .sort('created_at', 'desc');
+
+const { data: todos } = useSupabaseQueryBuilder(todosQuery, {
+  enabled: !!user // 인증된 사용자만 쿼리 실행
+});
+```
+
+## 실시간 구독 설정
+
+### Realtime 구독 패턴
+```typescript
+// 테이블 변경 사항 구독
+useEffect(() => {
+  if (!user) return;
+
+  const subscription = supabase
+    .channel('todos-changes')
+    .on('postgres_changes', {
+      event: '*', // INSERT, UPDATE, DELETE
+      schema: 'public',
+      table: 'todos',
+      filter: `user_id=eq.${user.id}` // 사용자 데이터만 구독
+    }, (payload) => {
+      console.log('Real-time change:', payload);
+      
+      // TanStack Query 캐시 무효화
+      queryClient.invalidateQueries({ queryKey: ['todos'] });
+    })
+    .subscribe();
+
+  return () => subscription.unsubscribe();
+}, [user?.id, queryClient]);
+```
+
+## Query Key 관리
+
+### 표준화된 Query Key 패턴
+```typescript
+export const createQueryKeys = (entity: string) => ({
+  all: () => [entity] as const,
+  lists: () => [...createQueryKeys(entity).all(), 'list'] as const,
+  list: (filters: Record<string, unknown>) => 
+    [...createQueryKeys(entity).lists(), filters] as const,
+  details: () => [...createQueryKeys(entity).all(), 'detail'] as const,
+  detail: (id: string) => [...createQueryKeys(entity).details(), id] as const,
+});
+
+// 공통 Query Keys
+export const QUERY_KEYS = {
+  users: createQueryKeys('users'),
+  todos: createQueryKeys('todos'),
+  posts: createQueryKeys('posts'),
+} as const;
+
+// 사용 예시
+const userKeys = QUERY_KEYS.users;
+userKeys.all()                    // ['users']
+userKeys.detail('123')            // ['users', 'detail', '123']
+```
+
+## 개발 워크플로우
+
+### 1. 스키마 변경 시
+```bash
+# 1. Supabase에서 스키마 변경
+# 2. 타입 재생성
+npm run supabase:types
+# 3. 관련 API 코드 업데이트
+```
+
+### 2. 새 테이블 추가 시
+```typescript
+// 1. database.ts 타입 확인
+// 2. CRUD API 생성
+export const newTableApi = createCrudApi<Tables<'new_table'>>('new_table');
+
+// 3. Query Keys 추가
+export const QUERY_KEYS = {
+  // ... 기존 키들
+  newTable: createQueryKeys('new_table'),
+} as const;
+```
+
+### 3. 복합 쿼리 작성 시
+```typescript
+// 1. Query Builder 활용
+const complexQuery = createSupabaseQuery('posts')
+  .select(`
+    *,
+    users!posts_author_id_fkey(id, name, avatar_url),
+    categories!posts_category_id_fkey(id, name)
+  `)
+  .where('status', 'eq', 'published')
+  .search(['title', 'content'], searchTerm)
+  .paginate({ page: 0, size: 10 });
+
+// 2. TanStack Query와 통합
+const { data: posts } = useSupabaseQueryBuilder(complexQuery);
+```

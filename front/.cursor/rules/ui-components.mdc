@@ -1,0 +1,572 @@
+# UI Components Rules
+
+## 💡 데이터 표시 컴포넌트 개발 시 주의사항
+
+**데이터를 표시하는 컴포넌트를 개발할 때는 먼저 실제 스키마를 확인하세요:**
+
+📁 **`front/src/shared/types/database.ts`**
+
+```typescript
+// ✅ 올바른 방법: 실제 스키마 기반 컴포넌트 Props
+import type { Tables } from '@/shared/types/database';
+
+interface TodoCardProps {
+  todo: Tables<'tb_todolist'>; // 실제 스키마 활용
+}
+
+// ❌ 잘못된 방법: 추측 기반 Props
+interface TodoCardProps {
+  todo: {
+    id: number;
+    text: string; // 실제로는 'title'과 'description'이 따로 있을 수 있음!
+  };
+}
+```
+
+## Atomic Design 구조
+
+### 컴포넌트 계층 분류
+
+#### Atoms (원자)
+```
+src/components/atoms/
+├── Button/           # 기본 버튼 컴포넌트
+├── IconButton/       # 아이콘 버튼
+├── Input/           # 입력 필드
+└── Logo/            # 로고 컴포넌트
+```
+
+**특징:**
+- 가장 작은 단위의 UI 컴포넌트
+- 재사용성이 높고 독립적
+- 비즈니스 로직 없음
+- Props로만 동작 제어
+
+#### Molecules (분자)
+```
+src/components/molecules/
+├── AuthActions/      # 로그인 버튼 등 인증 관련 액션
+├── BrandSection/     # 브랜드 섹션 (로고 + 햄버거 메뉴)
+├── NavigationItem/   # 네비게이션 아이템
+├── ThemeToggle/      # 테마 토글 버튼
+└── UserDropdown/     # 사용자 드롭다운 메뉴
+```
+
+**특징:**
+- 2개 이상의 Atoms로 구성
+- 특정 기능을 담당
+- 간단한 비즈니스 로직 포함 가능
+- 재사용 가능한 기능 단위
+
+#### Organisms (유기체)
+```
+src/components/organisms/
+├── AppHeader/        # 애플리케이션 헤더
+├── AppSidebar/       # 사이드바
+└── AuthUI/           # 인증 UI 블록
+```
+
+**특징:**
+- Atoms와 Molecules의 조합
+- 복잡한 비즈니스 로직 포함
+- 페이지의 주요 섹션 단위
+- 커스텀 훅과 연동
+
+#### Templates (템플릿)
+```
+src/components/templates/
+└── MainLayout/       # 메인 레이아웃 템플릿
+```
+
+**특징:**
+- 페이지 전체 구조 정의
+- 여러 Organisms 조합
+- 레이아웃과 배치에 집중
+- 콘텐츠는 children으로 주입
+
+## 컴포넌트 파일 구조
+
+### 표준 컴포넌트 구조
+```
+ComponentName/
+├── ComponentName.tsx          # 메인 컴포넌트
+├── ComponentName.module.scss  # 컴포넌트 전용 스타일
+└── index.ts                   # re-export
+```
+
+### 컴포넌트 파일 템플릿
+```typescript
+// ComponentName.tsx
+import type { ReactNode } from "react";
+import styles from "./ComponentName.module.scss";
+
+export interface ComponentNameProps {
+  children?: ReactNode;
+  variant?: "primary" | "secondary";
+  size?: "sm" | "md" | "lg";
+  disabled?: boolean;
+  className?: string;
+  onClick?: () => void;
+}
+
+export const ComponentName: React.FC<ComponentNameProps> = ({
+  children,
+  variant = "primary",
+  size = "md",
+  disabled = false,
+  className = "",
+  onClick,
+  ...props
+}) => {
+  const componentClass = [
+    styles.component,
+    styles[variant],
+    styles[size],
+    disabled && styles.disabled,
+    className,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  return (
+    <div className={componentClass} onClick={onClick} {...props}>
+      {children}
+    </div>
+  );
+};
+```
+
+### index.ts 템플릿
+```typescript
+// index.ts
+export { ComponentName } from './ComponentName';
+export type { ComponentNameProps } from './ComponentName';
+```
+
+## Bootstrap 통합 패턴
+
+### Bootstrap 컴포넌트 활용
+```typescript
+// React Bootstrap과 커스텀 컴포넌트 조합
+import { Dropdown } from 'react-bootstrap';
+import { IconButton } from '@/components/atoms/IconButton';
+
+export const UserDropdown: React.FC<UserDropdownProps> = ({
+  userEmail,
+  onSignOut,
+  isSigningOut = false,
+}) => {
+  return (
+    <Dropdown drop="down" align="end">
+      <Dropdown.Toggle 
+        as={IconButton}           // 커스텀 컴포넌트를 Bootstrap Toggle로 사용
+        icon="👤"
+      />
+      <Dropdown.Menu>
+        <Dropdown.ItemText>
+          <small className="text-body-secondary">{userEmail}</small>
+        </Dropdown.ItemText>    
+        <Dropdown.Divider />
+        <Dropdown.Item onClick={onSignOut} disabled={isSigningOut}>
+          {isSigningOut ? '로그아웃 중...' : '로그아웃'}
+        </Dropdown.Item>
+      </Dropdown.Menu>
+    </Dropdown>
+  );
+};
+```
+
+### Bootstrap 클래스와 커스텀 스타일 조합
+```typescript
+// Bootstrap utility 클래스 + 커스텀 스타일
+<Navbar 
+  bg="body-tertiary" 
+  expand="lg" 
+  className={`border-bottom sticky-top ${styles.appHeader} ${className}`}
+>
+  <Container fluid>
+    <div className="d-flex align-items-center">  {/* Bootstrap utility */}
+      <ThemeToggle className="me-2" />           {/* Bootstrap margin */}
+      {/* ... */}
+    </div>
+  </Container>
+</Navbar>
+```
+
+## Props 인터페이스 설계
+
+### 공통 Props 패턴
+```typescript
+// 기본 Props 인터페이스
+export interface BaseComponentProps {
+  children?: ReactNode;
+  className?: string;
+  id?: string;
+}
+
+// 상호작용 가능한 컴포넌트
+export interface InteractiveProps extends BaseComponentProps {
+  disabled?: boolean;
+  loading?: boolean;
+  onClick?: () => void;
+}
+
+// 폼 관련 컴포넌트
+export interface FormControlProps extends InteractiveProps {
+  value?: string;
+  onChange?: (value: string) => void;
+  placeholder?: string;
+  error?: string;
+  required?: boolean;
+}
+
+// 크기 변형 지원
+export interface SizableProps {
+  size?: "sm" | "md" | "lg";
+}
+
+// 색상 변형 지원
+export interface VariantProps {
+  variant?: "primary" | "secondary" | "outline" | "ghost" | "danger";
+}
+```
+
+### Button 컴포넌트 Props 예시
+```typescript
+export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  children: ReactNode;
+  variant?: "primary" | "secondary" | "outline" | "ghost" | "danger";
+  size?: "sm" | "md" | "lg";
+  fullWidth?: boolean;
+  loading?: boolean;
+  startIcon?: ReactNode;
+  endIcon?: ReactNode;
+}
+```
+
+### Props 네이밍 규칙
+```typescript
+// ✅ 권장
+isLoading          // boolean 타입은 is, has, can 접두사
+onSubmit           // 이벤트 핸들러는 on 접두사
+startIcon          // 명확한 위치나 역할 표시
+variant            // 변형 타입
+size               // 크기 타입
+
+// ❌ 비권장
+loading            // boolean이지만 is 접두사 없음
+submit             // 이벤트 핸들러지만 on 접두사 없음
+leftIcon           // start/end가 더 의미적으로 명확
+type               // 너무 일반적
+big                // size로 통일
+```
+
+## 스타일링 패턴
+
+### CSS Module 네이밍
+```scss
+// ComponentName.module.scss
+
+// BEM 스타일 클래스 네이밍
+.component {           // 컴포넌트 기본 클래스
+  @include button-base;
+  position: relative;
+  
+  &:focus-visible {
+    outline: 2px solid var(--color-primary);
+  }
+}
+
+// Variants (변형)
+.primary { /* primary 스타일 */ }
+.secondary { /* secondary 스타일 */ }
+.outline { /* outline 스타일 */ }
+
+// Sizes (크기)
+.sm { /* small 스타일 */ }
+.md { /* medium 스타일 */ }
+.lg { /* large 스타일 */ }
+
+// Modifiers (수식어)
+.fullWidth { width: 100%; }
+.loading { cursor: wait; }
+.disabled { opacity: 0.6; }
+
+// Elements (하위 요소)
+.content { /* 콘텐츠 영역 */ }
+.startIcon { /* 시작 아이콘 */ }
+.endIcon { /* 끝 아이콘 */ }
+.spinner { /* 로딩 스피너 */ }
+```
+
+### CSS 변수 활용
+```scss
+// CSS 변수를 적극 활용
+.primary {
+  background-color: var(--color-primary);
+  color: var(--color-white);
+  
+  &:hover:not(:disabled) {
+    background-color: var(--color-primary-dark);
+  }
+}
+
+// 크기별 간격과 폰트 사이즈
+.sm {
+  padding: var(--spacing-2) var(--spacing-3);
+  font-size: var(--font-size-sm);
+  min-height: 2rem;
+}
+
+.md {
+  padding: var(--spacing-3) var(--spacing-4);
+  font-size: var(--font-size-base);
+  min-height: 2.5rem;
+}
+```
+
+### SCSS Mixins 활용
+```scss
+// _mixins.scss
+@mixin button-base {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: var(--border-radius);
+  font-weight: var(--font-weight-medium);
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+// 컴포넌트에서 사용
+.button {
+  @include button-base;
+  // 추가 스타일...
+}
+```
+
+## 컴포넌트 조합 패턴
+
+### Compound Components 패턴
+```typescript
+// 복합 컴포넌트 패턴 (예: Card 컴포넌트)
+const Card = {
+  Root: CardRoot,
+  Header: CardHeader,
+  Body: CardBody,
+  Footer: CardFooter,
+};
+
+// 사용법
+<Card.Root>
+  <Card.Header>
+    <h3>제목</h3>
+  </Card.Header>
+  <Card.Body>
+    <p>내용</p>
+  </Card.Body>
+  <Card.Footer>
+    <Button>액션</Button>
+  </Card.Footer>
+</Card.Root>
+```
+
+### Render Props 패턴
+```typescript
+// 렌더 프롭 패턴 (예: Modal 컴포넌트)
+interface ModalProps {
+  trigger: (openModal: () => void) => ReactNode;
+  children: (closeModal: () => void) => ReactNode;
+}
+
+export const Modal: React.FC<ModalProps> = ({ trigger, children }) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <>
+      {trigger(() => setIsOpen(true))}
+      {isOpen && (
+        <div className={styles.modalBackdrop}>
+          <div className={styles.modalContent}>
+            {children(() => setIsOpen(false))}
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
+
+// 사용법
+<Modal
+  trigger={(open) => <Button onClick={open}>모달 열기</Button>}
+>
+  {(close) => (
+    <div>
+      <h2>모달 제목</h2>
+      <p>모달 내용</p>
+      <Button onClick={close}>닫기</Button>
+    </div>
+  )}
+</Modal>
+```
+
+## 접근성 (a11y) 가이드
+
+### 기본 접근성 규칙
+```typescript
+// 의미적 HTML 사용
+<button type="button" aria-label="닫기" onClick={onClose}>
+  ×
+</button>
+
+// role과 aria 속성 활용
+<div 
+  role="button" 
+  tabIndex={0}
+  aria-pressed={isPressed}
+  onKeyDown={handleKeyDown}
+  onClick={onClick}
+>
+  토글 버튼
+</div>
+
+// 포커스 관리
+<input
+  ref={inputRef}
+  aria-describedby={error ? `${id}-error` : undefined}
+  aria-invalid={!!error}
+/>
+{error && (
+  <div id={`${id}-error`} role="alert">
+    {error}
+  </div>
+)}
+```
+
+### 키보드 네비게이션
+```typescript
+const handleKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+  switch (e.key) {
+    case 'Enter':
+    case ' ': // 스페이스바
+      e.preventDefault();
+      onClick?.();
+      break;
+    case 'Escape':
+      onClose?.();
+      break;
+  }
+};
+```
+
+## 컴포넌트 테스트 패턴
+
+### 기본 테스트 구조
+```typescript
+// Button.test.tsx
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { Button } from './Button';
+
+describe('Button', () => {
+  it('renders with correct text', () => {
+    render(<Button>클릭</Button>);
+    expect(screen.getByRole('button', { name: '클릭' })).toBeInTheDocument();
+  });
+
+  it('calls onClick when clicked', async () => {
+    const user = userEvent.setup();
+    const handleClick = jest.fn();
+    
+    render(<Button onClick={handleClick}>클릭</Button>);
+    
+    await user.click(screen.getByRole('button'));
+    expect(handleClick).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows loading state', () => {
+    render(<Button loading>로딩</Button>);
+    expect(screen.getByRole('button')).toHaveClass('loading');
+  });
+});
+```
+
+## 성능 최적화
+
+### React.memo 사용 기준
+```typescript
+// ✅ memo 사용이 적절한 경우
+export const ExpensiveComponent = React.memo<ExpensiveComponentProps>(({
+  data,
+  onUpdate
+}) => {
+  // 복잡한 렌더링 로직
+  return <div>{/* ... */}</div>;
+});
+
+// 커스텀 비교 함수
+export const OptimizedComponent = React.memo(Component, (prevProps, nextProps) => {
+  return prevProps.id === nextProps.id && prevProps.status === nextProps.status;
+});
+```
+
+### useMemo와 useCallback 활용
+```typescript
+const MyComponent: React.FC<Props> = ({ items, filter }) => {
+  // 비용이 큰 계산 메모이제이션
+  const filteredItems = useMemo(() => {
+    return items.filter(item => item.category === filter);
+  }, [items, filter]);
+
+  // 이벤트 핸들러 메모이제이션
+  const handleItemClick = useCallback((id: string) => {
+    onItemSelect(id);
+  }, [onItemSelect]);
+
+  return (
+    <div>
+      {filteredItems.map(item => (
+        <Item key={item.id} data={item} onClick={handleItemClick} />
+      ))}
+    </div>
+  );
+};
+```
+
+## 컴포넌트 라이브러리 구성
+
+### 컴포넌트 Export 구조
+```typescript
+// src/components/index.ts
+
+// Atoms
+export { Button } from './atoms/Button';
+export { IconButton } from './atoms/IconButton';
+export { Input } from './atoms/Input';
+export { Logo } from './atoms/Logo';
+
+// Molecules  
+export { ThemeToggle } from './molecules/ThemeToggle';
+export { UserDropdown } from './molecules/UserDropdown';
+export { LoginButton } from './molecules/AuthActions/LoginButton';
+
+// Organisms
+export { AppHeader } from './organisms/AppHeader';
+export { AppSidebar } from './organisms/AppSidebar';
+export { AuthUI } from './organisms/AuthUI';
+
+// Templates
+export { MainLayout } from './templates/MainLayout';
+
+// Types
+export type { ButtonProps } from './atoms/Button';
+export type { AppHeaderProps } from './organisms/AppHeader';
+// ... 다른 타입들
+```

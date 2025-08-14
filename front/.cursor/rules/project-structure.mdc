@@ -1,0 +1,267 @@
+# Project Structure Rules
+
+## ⚠️ 데이터베이스 스키마 참조 우선순위
+
+**어떤 기능을 개발하든 가장 먼저 확인해야 할 파일:**
+
+📁 **`front/src/shared/types/database.ts`**
+
+- **Supabase에서 자동 생성**된 실제 데이터베이스 스키마
+- **모든 테이블 구조와 타입 정보** 포함
+- **추측이나 가정 금지**: 반드시 이 파일 기준으로 개발
+- 스키마 변경 시 `npm run supabase:types` 실행하여 동기화
+
+```typescript
+// ✅ 개발 시작 전 필수 확인
+import type { Tables, TablesInsert, TablesUpdate } from '@/shared/types/database';
+
+// 실제 스키마 확인 후 타입 정의
+type TodoItem = Tables<'tb_todolist'>;
+type UserProfile = Tables<'users'>;
+```
+
+## 폴더 구조
+
+```
+src/
+├── app/                        # 앱 레벨 설정 및 구성
+│   ├── providers/              # 글로벌 Provider 컴포넌트들
+│   │   ├── auth/              # 인증 관련 Provider
+│   │   └── query/             # TanStack Query Provider
+│   ├── routers/               # 라우팅 설정
+│   ├── store/                 # 글로벌 상태 관리 (Zustand)
+│   └── styles/                # 글로벌 스타일 설정
+│       ├── _variables.scss    # CSS 변수 정의
+│       ├── _mixins.scss       # SCSS 믹스인
+│       └── global.scss        # 글로벌 스타일
+├── components/                 # UI 컴포넌트 (Atomic Design)
+│   ├── atoms/                 # 기본 단위 컴포넌트
+│   ├── molecules/             # 조합된 기능 컴포넌트
+│   ├── organisms/             # 복합 기능 컴포넌트
+│   └── templates/             # 레이아웃 템플릿
+├── domains/                   # 도메인별 비즈니스 로직
+│   ├── auth/                  # 인증 관련 로직
+│   │   └── hooks/             # 인증 관련 커스텀 훅
+│   ├── supabaseCommon/        # Supabase 공통 로직
+│   │   └── hooks/             # Supabase 관련 훅
+│   └── theme/                 # 테마 관련 로직
+├── pages/                     # 페이지 컴포넌트들
+├── shared/                    # 공통 유틸리티 및 설정
+│   ├── api/                   # API 관련 설정
+│   │   ├── client.ts          # API 클라이언트 설정
+│   │   ├── supabase.ts        # Supabase 클라이언트
+│   │   └── index.ts           # API exports
+│   ├── constants/             # 상수 정의
+│   ├── lib/                   # 외부 라이브러리 설정
+│   └── types/                 # 🔥 중요: TypeScript 타입 정의
+      ├── database.ts        # ⚠️ Supabase 자동생성 스키마 (핵심 참조 파일)
+      ├── api.ts             # API 응답 관련 타입
+      └── common.ts          # 공통 타입 정의
+└── main.tsx                   # 앱 엔트리 포인트
+```
+
+## 네이밍 컨벤션
+
+### 파일/폴더 네이밍
+- **컴포넌트 파일**: PascalCase (Button.tsx, UserDropdown.tsx)
+- **컴포넌트 폴더**: PascalCase (Button/, UserDropdown/)
+- **훅 파일**: camelCase (useAuth.ts, useTheme.ts)
+- **유틸리티 파일**: camelCase (api.ts, constants.ts)
+- **페이지 컴포넌트**: PascalCase + "Page" suffix (HomePage.tsx, LoginPage.tsx)
+- **스타일 파일**: kebab-case 또는 모듈명 (global.scss, Button.module.scss)
+
+### 디렉토리 네이밍
+- **일반 폴더**: camelCase (supabaseCommon, authActions)
+- **컴포넌트 폴더**: PascalCase (Button, UserDropdown)
+- **도메인 폴더**: camelCase (auth, theme)
+
+### 인덱스 파일 패턴
+각 컴포넌트 폴더는 다음 구조를 가집니다:
+```
+ComponentName/
+├── ComponentName.tsx          # 메인 컴포넌트
+├── ComponentName.module.scss  # 컴포넌트 전용 스타일
+└── index.ts                   # re-export
+```
+
+## TypeScript 설정
+
+### tsconfig.json 구조
+```json
+{
+  "files": [],
+  "references": [
+    { "path": "./tsconfig.app.json" },
+    { "path": "./tsconfig.node.json" }
+  ]
+}
+```
+
+### 주요 컴파일러 옵션 (tsconfig.app.json)
+- **target**: ES2022
+- **module**: ESNext
+- **moduleResolution**: bundler
+- **jsx**: react-jsx
+- **strict**: true
+- **noUnusedLocals**: true
+- **noUnusedParameters**: true
+
+### 절대 경로 Import 설정
+
+#### Path Aliases
+```json
+"paths": {
+  "@/*": ["./src/*"],
+  "@/atoms": ["src/components/atoms"],
+  "@/atoms/*": ["src/components/atoms/*"],
+  "@/molecules": ["src/components/molecules"],
+  "@/molecules/*": ["src/components/molecules/*"],
+  "@/organisms": ["src/components/organisms"],
+  "@/organisms/*": ["src/components/organisms/*"],
+  "@/templates": ["src/components/templates"],
+  "@/templates/*": ["src/components/templates/*"],
+  "@/pages": ["./src/pages"],
+  "@/pages/*": ["./src/pages/*"],
+  "@/hooks": ["./src/hooks"],
+  "@/hooks/*": ["./src/hooks/*"],
+  "@/app": ["./src/app"],
+  "@/app/*": ["./src/app/*"]
+}
+```
+
+#### Vite Alias 설정
+```typescript
+resolve: {
+  alias: {
+    '@': path.resolve(__dirname, './src'),
+    '@/atoms': path.resolve(__dirname, './src/components/atoms'),
+    '@/molecules': path.resolve(__dirname, './src/components/molecules'),
+    '@/organisms': path.resolve(__dirname, './src/components/organisms'),
+    '@/templates': path.resolve(__dirname, './src/components/templates'),
+    '@/pages': path.resolve(__dirname, './src/pages'),
+    '@/hooks': path.resolve(__dirname, './src/hooks'),
+    '@/app': path.resolve(__dirname, './src/app'),
+  },
+}
+```
+
+#### Import 예시
+```typescript
+// ✅ 권장
+import { Button } from '@/atoms/Button';
+import { UserDropdown } from '@/molecules/UserDropdown';
+import { supabase } from '@/shared/api/supabase';
+import { useAuth } from '@/domains/auth/hooks/useAuth';
+
+// ❌ 비권장
+import { Button } from '../../../components/atoms/Button';
+```
+
+## 환경 파일 관리
+
+### 환경 변수 구조
+```
+.env.local              # 로컬 개발용 (gitignore)
+.env.example           # 환경 변수 템플릿
+```
+
+### 필수 환경 변수
+```bash
+# Supabase 설정
+VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+VITE_SUPABASE_PROJECT_ID=your_project_id
+
+# 앱 설정
+VITE_APP_URL=http://localhost:5173
+```
+
+### 환경 변수 사용법
+```typescript
+// ✅ 타입 안전한 방식
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+// 환경 변수 검증
+if (!supabaseUrl || !supabaseKey) {
+  throw new Error('VITE_SUPABASE_URL과 VITE_SUPABASE_ANON_KEY 환경변수가 필요합니다.');
+}
+```
+
+## 패키지 매니저 및 스크립트
+
+### NPM 스크립트
+```json
+{
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "eslint .",
+    "preview": "vite preview",
+    "supabase:types": "dotenv -e .env -- powershell -Command \"supabase gen types typescript --project-id $env:VITE_SUPABASE_PROJECT_ID --schema public > src/shared/types/database.ts\"",
+    // ⚠️ 중요: 이 스크립트는 실제 Supabase 스키마에서 database.ts를 자동 생성합니다
+    // 데이터베이스 구조 변경 시 반드시 실행하여 타입을 동기화하세요!
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:codegen": "playwright codegen http://localhost:5173"
+  }
+}
+```
+
+### 주요 의존성
+```json
+{
+  "dependencies": {
+    "@supabase/supabase-js": "^2.54.0",
+    "@tanstack/react-query": "^5.84.2",
+    "bootstrap": "^5.3.7",
+    "react": "^19.1.1",
+    "react-bootstrap": "^2.10.10",
+    "react-router-dom": "^7.8.0",
+    "sass": "^1.90.0",
+    "zustand": "^5.0.7"
+  }
+}
+```
+
+## 파일 생성 규칙
+
+### 컴포넌트 생성 시
+1. 폴더 생성: `src/components/{atoms|molecules|organisms|templates}/ComponentName/`
+2. 필수 파일 생성:
+   - `ComponentName.tsx` (메인 컴포넌트)
+   - `ComponentName.module.scss` (스타일)
+   - `index.ts` (re-export)
+
+### 커스텀 훅 생성 시
+1. 위치: `src/domains/{domainName}/hooks/`
+2. 네이밍: `use{HookName}.ts`
+3. 도메인별 분리 원칙 준수
+
+### 페이지 생성 시
+1. 위치: `src/pages/PageName/`
+2. 파일명: `PageName.tsx`
+3. 라우터에 등록 필요
+
+## 빌드 및 개발 환경
+
+### Vite 설정
+- **번들러**: Vite
+- **CSS 전처리기**: SCSS
+- **개발 서버**: 5173 포트
+- **빌드 출력**: dist/
+
+### CSS 전처리기 설정
+```typescript
+css: {
+  preprocessorOptions: {
+    scss: {
+      includePaths: [path.resolve(__dirname, 'src')],
+    },
+  },
+}
+```
+
+### 브라우저 지원
+- ES2022+ 지원 브라우저
+- 모던 브라우저 우선 지원
