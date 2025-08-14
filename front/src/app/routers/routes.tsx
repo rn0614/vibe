@@ -46,19 +46,19 @@ export const routes: RouteObject[] = [
         element: <HomePage />,
       },
       {
-        path: "about",
+        path: "/about",
         element: <AboutPage />,
       },
       {
-        path: "todos",
+        path: "/todos",
         element: <TodoPage />,
       },
       {
-        path: "login",
+        path: "/login",
         element: <LoginPage />,
       },
       {
-        path: "*",
+        path: "/*",
         element: <NotFoundPage />,
       },
     ],
