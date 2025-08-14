@@ -17,11 +17,4 @@ export default defineConfig({
       '@/app': path.resolve(__dirname, './src/app'),
     },
   },
-  css: {
-    preprocessorOptions: {
-      scss: {
-        includePaths: [path.resolve(__dirname, 'src')],
-      },
-    },
-  },
 })
