@@ -79,7 +79,7 @@ export const AuthUI: React.FC<AuthUIProps> = ({
       theme="default"
       providers={["google", "github", "facebook"]}
       onlyThirdPartyProviders={true}
-      redirectTo={redirectTo || window.location.origin}
+      redirectTo={redirectTo}
       localization={{
         variables: {
           sign_in: {

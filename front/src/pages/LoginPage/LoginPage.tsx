@@ -9,7 +9,7 @@ export const LoginPage: React.FC = () => {
   const { user } = useAuth();
 
   // 환경변수에서 리다이렉트 URL 가져오기 (배포 환경 대응)
-  const redirectUrl = import.meta.env.VITE_APP_URL || window.location.origin;
+  const redirectUrl = import.meta.env.VITE_APP_URL!;
 
   // 이미 로그인된 사용자는 홈으로 리다이렉트
   useEffect(() => {
