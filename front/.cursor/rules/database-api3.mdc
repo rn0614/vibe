@@ -1,0 +1,173 @@
+---
+description: database, api 사용에 대한 가이드
+alwaysApply: false
+---
+# Database & API Rules
+
+## 필수 체크리스트
+
+1. **스키마 확인**: `front/src/shared/types/database.ts` 타입 사용 필수
+2. **Soft Delete**: `deleted_at IS NULL` 필터 모든 조회에 적용
+3. **타입 추출**: `Tables<'table_name'>` 형태로만 사용
+
+## 강제 패턴
+
+### 타입 정의
+```typescript
+import type { Tables, TablesInsert, TablesUpdate } from '@/shared/types/database';
+type TodoItem = Tables<'tb_todolist'>;
+```
+
+### 기본 쿼리 (Soft Delete 필수)
+```typescript
+createSupabaseQuery('tb_todolist')
+  .select('*')
+  .where('deleted_at', 'is', null)
+```
+
+### 뮤테이션
+```typescript
+const create = useSupabaseMutationBuilder('tb_todolist', 'insert');
+const update = useSupabaseMutationBuilder('tb_todolist', 'update');
+```
+
+### Soft Delete 실행
+```typescript
+update.mutate({
+  id: todoId,
+  data: { 
+    deleted_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  }
+});
+```
+
+## 금지사항
+
+- `interface` 직접 정의 (타입 추측)
+- `deleteTodo.mutate()` 사용 (Hard Delete)
+- `deleted_at` 필터 누락
+- 환경변수 검증 생략
+
+## 템플릿
+
+### 조건부 쿼리
+```typescript
+let query = createSupabaseQuery('table_name')
+  .select('*')
+  .where('deleted_at', 'is', null);
+
+if (searchTerm) {
+  query = query.searchInColumn('column', searchTerm);
+}
+
+if (pagination) {
+  query = query.paginate({ page, size });
+}
+```
+
+### 삭제 체크
+```typescript
+if (item.deleted_at !== null) {
+  alert('삭제된 항목입니다.');
+  return;
+}
+```
+
+### 환경변수 검증
+```typescript
+if (!supabaseUrl || !supabaseKey) {
+  throw new Error('Supabase 환경변수 필요');
+}
+```
+
+## 파일 위치
+
+- 타입: `front/src/shared/types/database.ts`
+- 클라이언트: `front/src/shared/api/supabase.ts`
+- 빌더: `front/src/domains/supabaseCommon/hooks/useSupabaseQueryBuilderV2.ts`
+- 재생성: `npm run supabase:types`# Database & API Rules
+
+## 필수 체크리스트
+
+1. **스키마 확인**: `front/src/shared/types/database.ts` 타입 사용 필수
+2. **Soft Delete**: `deleted_at IS NULL` 필터 모든 조회에 적용
+3. **타입 추출**: `Tables<'table_name'>` 형태로만 사용
+
+## 강제 패턴
+
+### 타입 정의
+```typescript
+import type { Tables, TablesInsert, TablesUpdate } from '@/shared/types/database';
+type TodoItem = Tables<'tb_todolist'>;
+```
+
+### 기본 쿼리 (Soft Delete 필수)
+```typescript
+createSupabaseQuery('tb_todolist')
+  .select('*')
+  .where('deleted_at', 'is', null)
+```
+
+### 뮤테이션
+```typescript
+const create = useSupabaseMutationBuilder('tb_todolist', 'insert');
+const update = useSupabaseMutationBuilder('tb_todolist', 'update');
+```
+
+### Soft Delete 실행
+```typescript
+update.mutate({
+  id: todoId,
+  data: { 
+    deleted_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  }
+});
+```
+
+## 금지사항
+
+- `interface` 직접 정의 (타입 추측)
+- `deleteTodo.mutate()` 사용 (Hard Delete)
+- `deleted_at` 필터 누락
+- 환경변수 검증 생략
+
+## 템플릿
+
+### 조건부 쿼리
+```typescript
+let query = createSupabaseQuery('table_name')
+  .select('*')
+  .where('deleted_at', 'is', null);
+
+if (searchTerm) {
+  query = query.searchInColumn('column', searchTerm);
+}
+
+if (pagination) {
+  query = query.paginate({ page, size });
+}
+```
+
+### 삭제 체크
+```typescript
+if (item.deleted_at !== null) {
+  alert('삭제된 항목입니다.');
+  return;
+}
+```
+
+### 환경변수 검증
+```typescript
+if (!supabaseUrl || !supabaseKey) {
+  throw new Error('Supabase 환경변수 필요');
+}
+```
+
+## 파일 위치
+
+- 타입: `front/src/shared/types/database.ts`
+- 클라이언트: `front/src/shared/api/supabase.ts`
+- 빌더: `front/src/domains/supabaseCommon/hooks/useSupabaseQueryBuilderV2.ts`
+- 재생성: `npm run supabase:types`

@@ -4,280 +4,82 @@ alwaysApply: false
 ---
 # Styles Rules
 
-## 색상 시스템
+## 필수 체크리스트
 
-### 기본 색상 팔레트
+1. **CSS 변수 사용**: 모든 색상, 간격, 폰트는 CSS 변수로 관리
+2. **반응형 믹스인**: `@include mobile`, `@include tablet-up` 사용
+3. **다크 모드 지원**: `[data-bs-theme="dark"]` 대응
+4. **8px 그리드**: 모든 간격은 8px 배수로 설정
+
+## 강제 패턴
+
+### 색상 팔레트
 ```scss
-// src/app/styles/_variables.scss
 :root {
-  // Primary colors (파란색 계열)
-  --color-primary: #3b82f6;        // Blue 500
-  --color-primary-dark: #2563eb;   // Blue 600 (hover)
-  --color-primary-light: #93c5fd;  // Blue 300 (light variant)
-
-  // Neutral colors (회색 계열)
-  --color-white: #ffffff;
-  --color-black: #000000;
+  // Primary
+  --color-primary: #3b82f6;
+  --color-primary-dark: #2563eb;
+  
+  // Neutral
   --color-gray-50: #f9fafb;
   --color-gray-100: #f3f4f6;
-  --color-gray-200: #e5e7eb;
-  --color-gray-300: #d1d5db;      // 기본 border
-  --color-gray-400: #9ca3af;      // placeholder
-  --color-gray-500: #6b7280;
-  --color-gray-600: #4b5563;      // secondary button
-  --color-gray-700: #374151;
-  --color-gray-800: #1f2937;
-  --color-gray-900: #111827;      // 기본 text
-
-  // Semantic colors (의미적 색상)
-  --color-success: #10b981;       // 성공 (초록)
-  --color-error: #ef4444;         // 에러 (빨강)
-  --color-warning: #f59e0b;       // 경고 (노랑)
-  --color-info: #3b82f6;          // 정보 (파랑)
-}
-```
-
-### 색상 변형 규칙
-```scss
-// 기본 색상 변형 패턴
-.primary {
-  background-color: var(--color-primary);
-  color: var(--color-white);
+  --color-gray-300: #d1d5db;
+  --color-gray-900: #111827;
   
-  &:hover:not(:disabled) {
-    background-color: var(--color-primary-dark); // 한 단계 어둡게
-  }
-  
-  &:active:not(:disabled) {
-    transform: translateY(1px);                   // 시각적 피드백
-  }
-}
-
-// Outline 변형
-.outline {
-  background-color: transparent;
-  color: var(--color-primary);
-  border: 1px solid var(--color-primary);
-  
-  &:hover:not(:disabled) {
-    background-color: var(--color-primary);
-    color: var(--color-white);
-  }
-}
-
-// Ghost 변형
-.ghost {
-  background-color: transparent;
-  color: var(--color-primary);
-  
-  &:hover:not(:disabled) {
-    background-color: var(--color-gray-100);
-  }
-}
-```
-
-### 다크 모드 지원
-```scss
-// Bootstrap 다크 모드와 연동
-[data-bs-theme="dark"] {
-  --color-gray-50: #1f2937;
-  --color-gray-100: #374151;
-  --color-gray-900: #f9fafb;
-  
-  // 커스텀 다크 모드 색상
-  --color-surface: #1f2937;
-  --color-surface-variant: #374151;
-}
-
-// 다크 모드 자동 적용
-@media (prefers-color-scheme: dark) {
-  [data-bs-theme="auto"] {
-    // 다크 모드 색상 적용
-  }
-}
-```
-
-## CSS 변수 관리
-
-### 타이포그래피 시스템
-```scss
-:root {
-  // Font families
-  --font-family-primary: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-  --font-family-mono: 'Fira Code', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace;
-
-  // Font sizes (16px 기준)
-  --font-size-xs: 0.75rem;   // 12px
-  --font-size-sm: 0.875rem;  // 14px
-  --font-size-base: 1rem;    // 16px (기본)
-  --font-size-lg: 1.125rem;  // 18px
-  --font-size-xl: 1.25rem;   // 20px
-  --font-size-2xl: 1.5rem;   // 24px
-  --font-size-3xl: 1.875rem; // 30px
-  --font-size-4xl: 2.25rem;  // 36px
-
-  // Font weights
-  --font-weight-normal: 400;
-  --font-weight-medium: 500;
-  --font-weight-semibold: 600;
-  --font-weight-bold: 700;
+  // Semantic
+  --color-success: #10b981;
+  --color-error: #ef4444;
+  --color-warning: #f59e0b;
+  --color-info: #3b82f6;
 }
 ```
 
 ### 간격 시스템 (8px 그리드)
 ```scss
 :root {
-  // Spacing scale (8px 기준)
-  --spacing-1: 0.25rem;   // 4px
-  --spacing-2: 0.5rem;    // 8px
-  --spacing-3: 0.75rem;   // 12px
-  --spacing-4: 1rem;      // 16px
-  --spacing-5: 1.25rem;   // 20px
-  --spacing-6: 1.5rem;    // 24px
-  --spacing-8: 2rem;      // 32px
-  --spacing-10: 2.5rem;   // 40px
-  --spacing-12: 3rem;     // 48px
-  --spacing-16: 4rem;     // 64px
-}
-
-// 사용 예시
-.component {
-  padding: var(--spacing-4) var(--spacing-6);
-  margin-bottom: var(--spacing-8);
-}
-```
-
-### Border Radius 시스템
-```scss
-:root {
-  // Border radius scale
-  --border-radius-sm: 0.125rem;  // 2px
-  --border-radius: 0.25rem;      // 4px (기본)
-  --border-radius-md: 0.375rem;  // 6px
-  --border-radius-lg: 0.5rem;    // 8px
-  --border-radius-xl: 0.75rem;   // 12px
-  --border-radius-2xl: 1rem;     // 16px
-  --border-radius-full: 9999px;  // 완전한 원형
-}
-```
-
-### 그림자 시스템
-```scss
-:root {
-  // Shadow scale
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-}
-
-// 사용 예시
-.card {
-  box-shadow: var(--shadow);
-  
-  &:hover {
-    box-shadow: var(--shadow-lg);
-  }
-}
-```
-
-### Z-Index 시스템
-```scss
-:root {
-  // Z-index scale
-  --z-dropdown: 1000;      // 드롭다운
-  --z-sticky: 1020;        // sticky 요소
-  --z-fixed: 1030;         // fixed 요소
-  --z-modal-backdrop: 1040; // 모달 배경
-  --z-modal: 1050;         // 모달
-  --z-popover: 1060;       // 팝오버
-  --z-tooltip: 1070;       // 툴팁
-}
-```
-
-## 반응형 디자인
-
-### 브레이크포인트 정의
-```scss
-:root {
-  // Breakpoints (Bootstrap 5.3 기준)
-  --breakpoint-sm: 640px;   // 모바일 큰 화면
-  --breakpoint-md: 768px;   // 태블릿
-  --breakpoint-lg: 1024px;  // 데스크톱 작은 화면
-  --breakpoint-xl: 1280px;  // 데스크톱 큰 화면
-  --breakpoint-2xl: 1536px; // 대형 화면
+  --spacing-1: 0.25rem;  // 4px
+  --spacing-2: 0.5rem;   // 8px
+  --spacing-3: 0.75rem;  // 12px
+  --spacing-4: 1rem;     // 16px
+  --spacing-6: 1.5rem;   // 24px
+  --spacing-8: 2rem;     // 32px
 }
 ```
 
 ### 반응형 믹스인
 ```scss
-// src/app/styles/_mixins.scss
-
-// 모바일 우선 (Mobile First)
-@mixin mobile-down {
-  @media (max-width: calc(var(--breakpoint-sm) - 1px)) {
-    @content;
-  }
-}
-
 @mixin mobile {
-  @media (max-width: calc(var(--breakpoint-md) - 1px)) {
-    @content;
-  }
-}
-
-@mixin tablet {
-  @media (min-width: var(--breakpoint-md)) and (max-width: calc(var(--breakpoint-lg) - 1px)) {
+  @media (max-width: calc(768px - 1px)) {
     @content;
   }
 }
 
 @mixin tablet-up {
-  @media (min-width: var(--breakpoint-md)) {
-    @content;
-  }
-}
-
-@mixin desktop {
-  @media (min-width: var(--breakpoint-lg)) {
+  @media (min-width: 768px) {
     @content;
   }
 }
 
 @mixin desktop-up {
-  @media (min-width: var(--breakpoint-lg)) {
+  @media (min-width: 1024px) {
     @content;
   }
 }
 ```
 
-### 반응형 사용 예시
+### 다크 모드
 ```scss
-.component {
-  padding: var(--spacing-6);
-  
-  @include mobile {
-    padding: var(--spacing-4);
-  }
-  
-  @include tablet-up {
-    display: flex;
-    gap: var(--spacing-8);
-  }
-  
-  @include desktop-up {
-    max-width: 1200px;
-    margin: 0 auto;
-  }
+[data-bs-theme="dark"] {
+  --color-gray-50: #1f2937;
+  --color-gray-100: #374151;
+  --color-gray-900: #f9fafb;
 }
 ```
 
-## SCSS 믹스인 패턴
+## 공통 믹스인
 
-### 레이아웃 믹스인
+### 레이아웃
 ```scss
-// Flexbox 관련
 @mixin flex-center {
   display: flex;
   align-items: center;
@@ -289,29 +91,16 @@ alwaysApply: false
   align-items: center;
   justify-content: space-between;
 }
-
-@mixin flex-column {
-  display: flex;
-  flex-direction: column;
-}
-
-@mixin flex-column-center {
-  @include flex-column;
-  align-items: center;
-  justify-content: center;
-}
 ```
 
-### 텍스트 믹스인
+### 텍스트
 ```scss
-// 텍스트 잘림 처리
 @mixin text-ellipsis {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-// 여러 줄 텍스트 잘림
 @mixin text-clamp($lines: 2) {
   display: -webkit-box;
   -webkit-line-clamp: $lines;
@@ -320,9 +109,8 @@ alwaysApply: false
 }
 ```
 
-### 버튼 믹스인
+### 버튼
 ```scss
-// 버튼 리셋
 @mixin button-reset {
   border: none;
   background: none;
@@ -330,177 +118,34 @@ alwaysApply: false
   margin: 0;
   cursor: pointer;
   font: inherit;
-  color: inherit;
-  outline: none;
   
   &:focus-visible {
     outline: 2px solid var(--color-primary);
     outline-offset: 2px;
   }
 }
-
-// 기본 버튼 스타일
-@mixin button-base {
-  @include button-reset;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: var(--spacing-3) var(--spacing-4);
-  border-radius: var(--border-radius);
-  font-weight: var(--font-weight-medium);
-  transition: all 0.2s ease-in-out;
-  text-decoration: none;
-  
-  &:disabled {
-    cursor: not-allowed;
-    opacity: 0.6;
-  }
-}
 ```
 
-### 카드 믹스인
+### 스크롤바
 ```scss
-// 기본 카드
-@mixin card {
-  background: var(--color-white);
-  border-radius: var(--border-radius-lg);
-  box-shadow: var(--shadow);
-  padding: var(--spacing-6);
-}
-
-// 호버 효과가 있는 카드
-@mixin card-hover {
-  @include card;
-  transition: all 0.2s ease-in-out;
-  
-  &:hover {
-    box-shadow: var(--shadow-md);
-    transform: translateY(-2px);
-  }
-}
-```
-
-### 입력 필드 믹스인
-```scss
-@mixin input-base {
-  width: 100%;
-  padding: var(--spacing-3) var(--spacing-4);
-  border: 1px solid var(--color-gray-300);
-  border-radius: var(--border-radius);
-  font-size: var(--font-size-base);
-  transition: all 0.2s ease-in-out;
-  
-  &:focus {
-    outline: none;
-    border-color: var(--color-primary);
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+@mixin scrollbar-style {
+  &::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
   }
   
-  &:disabled {
-    background-color: var(--color-gray-100);
-    cursor: not-allowed;
-  }
-  
-  &::placeholder {
-    color: var(--color-gray-400);
-  }
-}
-```
-
-## Bootstrap 커스터마이징
-
-### Bootstrap과 커스텀 스타일 조합
-```scss
-// Bootstrap 클래스와 커스텀 스타일 조합
-.appHeader {
-  backdrop-filter: blur(8px);
-  background-color: rgba(var(--bs-body-bg-rgb), 0.95) !important;
-  transition: all 0.2s ease;
-  
-  .container-fluid {
-    padding: 0.75rem 1rem;
+  &::-webkit-scrollbar-thumb {
+    background: var(--color-gray-400);
+    border-radius: 9999px;
     
-    @include mobile {
-      padding: 0.5rem 1rem;
+    &:hover {
+      background: var(--color-gray-500);
     }
   }
 }
 ```
 
-### Bootstrap 변수 오버라이드
-```scss
-// Bootstrap 커스터마이징 (필요시)
-:root {
-  // Bootstrap 변수 커스터마이징
-  --bs-primary: var(--color-primary);
-  --bs-success: var(--color-success);
-  --bs-danger: var(--color-error);
-  --bs-warning: var(--color-warning);
-  --bs-info: var(--color-info);
-}
-```
-
-## 애니메이션 및 트랜지션
-
-### 기본 트랜지션
-```scss
-// 표준 트랜지션 패턴
-.interactive-element {
-  transition: all 0.2s ease-in-out;
-  
-  &:hover {
-    transform: translateY(-2px);
-  }
-  
-  &:active {
-    transform: translateY(1px);
-  }
-}
-```
-
-### 페이지 전환 애니메이션
-```scss
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.mainContent {
-  animation: fadeInUp 0.3s ease-out;
-}
-```
-
-### 스피너 애니메이션
-```scss
-@keyframes spin {
-  to {
-    transform: translate(-50%, -50%) rotate(360deg);
-  }
-}
-
-.spinner {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  width: 1rem;
-  height: 1rem;
-  border: 2px solid transparent;
-  border-top: 2px solid currentColor;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-```
-
-## 접근성 스타일링
-
-### 스크린 리더 전용 텍스트
+### 접근성
 ```scss
 @mixin sr-only {
   position: absolute;
@@ -513,586 +158,22 @@ alwaysApply: false
   white-space: nowrap;
   border: 0;
 }
-
-.sr-only {
-  @include sr-only;
-}
 ```
 
-### 포커스 스타일
-```scss
-@mixin focus-visible {
-  &:focus-visible {
-    outline: 2px solid var(--color-primary);
-    outline-offset: 2px;
-  }
-}
-
-// 모든 인터랙티브 요소에 적용
-a, button, input, textarea, select {
-  @include focus-visible;
-}
-```
-
-## 스크롤바 커스터마이징
-
-### 웹킷 기반 스크롤바
-```scss
-@mixin scrollbar-style {
-  &::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-  }
-  
-  &::-webkit-scrollbar-track {
-    background: var(--color-gray-100);
-    border-radius: var(--border-radius-full);
-  }
-  
-  &::-webkit-scrollbar-thumb {
-    background: var(--color-gray-400);
-    border-radius: var(--border-radius-full);
-    
-    &:hover {
-      background: var(--color-gray-500);
-    }
-  }
-}
-
-// 사용 예시
-.scrollable-content {
-  @include scrollbar-style;
-  overflow-y: auto;
-  max-height: 400px;
-}
-```
-
-## 유틸리티 클래스
-
-### 텍스트 관련
-```scss
-.text-center { text-align: center; }
-.text-left { text-align: left; }
-.text-right { text-align: right; }
-
-.font-bold { font-weight: var(--font-weight-bold); }
-.font-semibold { font-weight: var(--font-weight-semibold); }
-.font-medium { font-weight: var(--font-weight-medium); }
-
-.text-primary { color: var(--color-primary); }
-.text-success { color: var(--color-success); }
-.text-error { color: var(--color-error); }
-.text-warning { color: var(--color-warning); }
-```
-
-### 간격 관련
-```scss
-.mb-0 { margin-bottom: 0; }
-.mb-1 { margin-bottom: var(--spacing-1); }
-.mb-2 { margin-bottom: var(--spacing-2); }
-.mb-3 { margin-bottom: var(--spacing-3); }
-.mb-4 { margin-bottom: var(--spacing-4); }
-.mb-6 { margin-bottom: var(--spacing-6); }
-.mb-8 { margin-bottom: var(--spacing-8); }
-```
-
-## 성능 최적화
-
-### CSS 최적화 규칙
-```scss
-// ✅ 권장: CSS 변수 사용
-.component {
-  color: var(--color-primary);
-  padding: var(--spacing-4);
-}
-
-// ✅ 권장: 효율적인 선택자
-.component-title { /* ... */ }
-
-// ❌ 비권장: 깊은 중첩
-.page .content .section .article .title { /* ... */ }
-
-// ✅ 권장: 단순한 트랜지션
-transition: transform 0.2s ease;
-
-// ❌ 비권장: 모든 속성 트랜지션
-transition: all 0.2s ease;
-```
-
-### 다크 모드 최적화
-```scss
-// CSS 변수를 활용한 효율적인 다크 모드
-:root {
-  --text-color: var(--color-gray-900);
-  --bg-color: var(--color-white);
-}
-
-[data-bs-theme="dark"] {
-  --text-color: var(--color-gray-100);
-  --bg-color: var(--color-gray-900);
-}
-
-.component {
-  color: var(--text-color);
-  background-color: var(--bg-color);
-}
-```# Styles Rules
-
-## 색상 시스템
-
-### 기본 색상 팔레트
-```scss
-// src/app/styles/_variables.scss
-:root {
-  // Primary colors (파란색 계열)
-  --color-primary: #3b82f6;        // Blue 500
-  --color-primary-dark: #2563eb;   // Blue 600 (hover)
-  --color-primary-light: #93c5fd;  // Blue 300 (light variant)
-
-  // Neutral colors (회색 계열)
-  --color-white: #ffffff;
-  --color-black: #000000;
-  --color-gray-50: #f9fafb;
-  --color-gray-100: #f3f4f6;
-  --color-gray-200: #e5e7eb;
-  --color-gray-300: #d1d5db;      // 기본 border
-  --color-gray-400: #9ca3af;      // placeholder
-  --color-gray-500: #6b7280;
-  --color-gray-600: #4b5563;      // secondary button
-  --color-gray-700: #374151;
-  --color-gray-800: #1f2937;
-  --color-gray-900: #111827;      // 기본 text
-
-  // Semantic colors (의미적 색상)
-  --color-success: #10b981;       // 성공 (초록)
-  --color-error: #ef4444;         // 에러 (빨강)
-  --color-warning: #f59e0b;       // 경고 (노랑)
-  --color-info: #3b82f6;          // 정보 (파랑)
-}
-```
-
-### 색상 변형 규칙
-```scss
-// 기본 색상 변형 패턴
-.primary {
-  background-color: var(--color-primary);
-  color: var(--color-white);
-  
-  &:hover:not(:disabled) {
-    background-color: var(--color-primary-dark); // 한 단계 어둡게
-  }
-  
-  &:active:not(:disabled) {
-    transform: translateY(1px);                   // 시각적 피드백
-  }
-}
-
-// Outline 변형
-.outline {
-  background-color: transparent;
-  color: var(--color-primary);
-  border: 1px solid var(--color-primary);
-  
-  &:hover:not(:disabled) {
-    background-color: var(--color-primary);
-    color: var(--color-white);
-  }
-}
-
-// Ghost 변형
-.ghost {
-  background-color: transparent;
-  color: var(--color-primary);
-  
-  &:hover:not(:disabled) {
-    background-color: var(--color-gray-100);
-  }
-}
-```
-
-### 다크 모드 지원
-```scss
-// Bootstrap 다크 모드와 연동
-[data-bs-theme="dark"] {
-  --color-gray-50: #1f2937;
-  --color-gray-100: #374151;
-  --color-gray-900: #f9fafb;
-  
-  // 커스텀 다크 모드 색상
-  --color-surface: #1f2937;
-  --color-surface-variant: #374151;
-}
-
-// 다크 모드 자동 적용
-@media (prefers-color-scheme: dark) {
-  [data-bs-theme="auto"] {
-    // 다크 모드 색상 적용
-  }
-}
-```
-
-## CSS 변수 관리
-
-### 타이포그래피 시스템
-```scss
-:root {
-  // Font families
-  --font-family-primary: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-  --font-family-mono: 'Fira Code', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace;
-
-  // Font sizes (16px 기준)
-  --font-size-xs: 0.75rem;   // 12px
-  --font-size-sm: 0.875rem;  // 14px
-  --font-size-base: 1rem;    // 16px (기본)
-  --font-size-lg: 1.125rem;  // 18px
-  --font-size-xl: 1.25rem;   // 20px
-  --font-size-2xl: 1.5rem;   // 24px
-  --font-size-3xl: 1.875rem; // 30px
-  --font-size-4xl: 2.25rem;  // 36px
-
-  // Font weights
-  --font-weight-normal: 400;
-  --font-weight-medium: 500;
-  --font-weight-semibold: 600;
-  --font-weight-bold: 700;
-}
-```
-
-### 간격 시스템 (8px 그리드)
-```scss
-:root {
-  // Spacing scale (8px 기준)
-  --spacing-1: 0.25rem;   // 4px
-  --spacing-2: 0.5rem;    // 8px
-  --spacing-3: 0.75rem;   // 12px
-  --spacing-4: 1rem;      // 16px
-  --spacing-5: 1.25rem;   // 20px
-  --spacing-6: 1.5rem;    // 24px
-  --spacing-8: 2rem;      // 32px
-  --spacing-10: 2.5rem;   // 40px
-  --spacing-12: 3rem;     // 48px
-  --spacing-16: 4rem;     // 64px
-}
-
-// 사용 예시
-.component {
-  padding: var(--spacing-4) var(--spacing-6);
-  margin-bottom: var(--spacing-8);
-}
-```
-
-### Border Radius 시스템
-```scss
-:root {
-  // Border radius scale
-  --border-radius-sm: 0.125rem;  // 2px
-  --border-radius: 0.25rem;      // 4px (기본)
-  --border-radius-md: 0.375rem;  // 6px
-  --border-radius-lg: 0.5rem;    // 8px
-  --border-radius-xl: 0.75rem;   // 12px
-  --border-radius-2xl: 1rem;     // 16px
-  --border-radius-full: 9999px;  // 완전한 원형
-}
-```
-
-### 그림자 시스템
-```scss
-:root {
-  // Shadow scale
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-}
-
-// 사용 예시
-.card {
-  box-shadow: var(--shadow);
-  
-  &:hover {
-    box-shadow: var(--shadow-lg);
-  }
-}
-```
-
-### Z-Index 시스템
-```scss
-:root {
-  // Z-index scale
-  --z-dropdown: 1000;      // 드롭다운
-  --z-sticky: 1020;        // sticky 요소
-  --z-fixed: 1030;         // fixed 요소
-  --z-modal-backdrop: 1040; // 모달 배경
-  --z-modal: 1050;         // 모달
-  --z-popover: 1060;       // 팝오버
-  --z-tooltip: 1070;       // 툴팁
-}
-```
-
-## 반응형 디자인
-
-### 브레이크포인트 정의
-```scss
-:root {
-  // Breakpoints (Bootstrap 5.3 기준)
-  --breakpoint-sm: 640px;   // 모바일 큰 화면
-  --breakpoint-md: 768px;   // 태블릿
-  --breakpoint-lg: 1024px;  // 데스크톱 작은 화면
-  --breakpoint-xl: 1280px;  // 데스크톱 큰 화면
-  --breakpoint-2xl: 1536px; // 대형 화면
-}
-```
-
-### 반응형 믹스인
-```scss
-// src/app/styles/_mixins.scss
-
-// 모바일 우선 (Mobile First)
-@mixin mobile-down {
-  @media (max-width: calc(var(--breakpoint-sm) - 1px)) {
-    @content;
-  }
-}
-
-@mixin mobile {
-  @media (max-width: calc(var(--breakpoint-md) - 1px)) {
-    @content;
-  }
-}
-
-@mixin tablet {
-  @media (min-width: var(--breakpoint-md)) and (max-width: calc(var(--breakpoint-lg) - 1px)) {
-    @content;
-  }
-}
-
-@mixin tablet-up {
-  @media (min-width: var(--breakpoint-md)) {
-    @content;
-  }
-}
-
-@mixin desktop {
-  @media (min-width: var(--breakpoint-lg)) {
-    @content;
-  }
-}
-
-@mixin desktop-up {
-  @media (min-width: var(--breakpoint-lg)) {
-    @content;
-  }
-}
-```
-
-### 반응형 사용 예시
-```scss
-.component {
-  padding: var(--spacing-6);
-  
-  @include mobile {
-    padding: var(--spacing-4);
-  }
-  
-  @include tablet-up {
-    display: flex;
-    gap: var(--spacing-8);
-  }
-  
-  @include desktop-up {
-    max-width: 1200px;
-    margin: 0 auto;
-  }
-}
-```
-
-## SCSS 믹스인 패턴
-
-### 레이아웃 믹스인
-```scss
-// Flexbox 관련
-@mixin flex-center {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-@mixin flex-between {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-@mixin flex-column {
-  display: flex;
-  flex-direction: column;
-}
-
-@mixin flex-column-center {
-  @include flex-column;
-  align-items: center;
-  justify-content: center;
-}
-```
-
-### 텍스트 믹스인
-```scss
-// 텍스트 잘림 처리
-@mixin text-ellipsis {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-// 여러 줄 텍스트 잘림
-@mixin text-clamp($lines: 2) {
-  display: -webkit-box;
-  -webkit-line-clamp: $lines;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-```
-
-### 버튼 믹스인
-```scss
-// 버튼 리셋
-@mixin button-reset {
-  border: none;
-  background: none;
-  padding: 0;
-  margin: 0;
-  cursor: pointer;
-  font: inherit;
-  color: inherit;
-  outline: none;
-  
-  &:focus-visible {
-    outline: 2px solid var(--color-primary);
-    outline-offset: 2px;
-  }
-}
-
-// 기본 버튼 스타일
-@mixin button-base {
-  @include button-reset;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: var(--spacing-3) var(--spacing-4);
-  border-radius: var(--border-radius);
-  font-weight: var(--font-weight-medium);
-  transition: all 0.2s ease-in-out;
-  text-decoration: none;
-  
-  &:disabled {
-    cursor: not-allowed;
-    opacity: 0.6;
-  }
-}
-```
-
-### 카드 믹스인
-```scss
-// 기본 카드
-@mixin card {
-  background: var(--color-white);
-  border-radius: var(--border-radius-lg);
-  box-shadow: var(--shadow);
-  padding: var(--spacing-6);
-}
-
-// 호버 효과가 있는 카드
-@mixin card-hover {
-  @include card;
-  transition: all 0.2s ease-in-out;
-  
-  &:hover {
-    box-shadow: var(--shadow-md);
-    transform: translateY(-2px);
-  }
-}
-```
-
-### 입력 필드 믹스인
-```scss
-@mixin input-base {
-  width: 100%;
-  padding: var(--spacing-3) var(--spacing-4);
-  border: 1px solid var(--color-gray-300);
-  border-radius: var(--border-radius);
-  font-size: var(--font-size-base);
-  transition: all 0.2s ease-in-out;
-  
-  &:focus {
-    outline: none;
-    border-color: var(--color-primary);
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-  }
-  
-  &:disabled {
-    background-color: var(--color-gray-100);
-    cursor: not-allowed;
-  }
-  
-  &::placeholder {
-    color: var(--color-gray-400);
-  }
-}
-```
-
-## Bootstrap 커스터마이징
-
-### Bootstrap과 커스텀 스타일 조합
-```scss
-// Bootstrap 클래스와 커스텀 스타일 조합
-.appHeader {
-  backdrop-filter: blur(8px);
-  background-color: rgba(var(--bs-body-bg-rgb), 0.95) !important;
-  transition: all 0.2s ease;
-  
-  .container-fluid {
-    padding: 0.75rem 1rem;
-    
-    @include mobile {
-      padding: 0.5rem 1rem;
-    }
-  }
-}
-```
-
-### Bootstrap 변수 오버라이드
-```scss
-// Bootstrap 커스터마이징 (필요시)
-:root {
-  // Bootstrap 변수 커스터마이징
-  --bs-primary: var(--color-primary);
-  --bs-success: var(--color-success);
-  --bs-danger: var(--color-error);
-  --bs-warning: var(--color-warning);
-  --bs-info: var(--color-info);
-}
-```
-
-## 애니메이션 및 트랜지션
+## 트랜지션 & 애니메이션
 
 ### 기본 트랜지션
 ```scss
-// 표준 트랜지션 패턴
-.interactive-element {
-  transition: all 0.2s ease-in-out;
+.component {
+  transition: transform 0.2s ease-in-out;
   
   &:hover {
     transform: translateY(-2px);
   }
-  
-  &:active {
-    transform: translateY(1px);
-  }
 }
 ```
 
-### 페이지 전환 애니메이션
+### 키프레임
 ```scss
 @keyframes fadeInUp {
   from {
@@ -1105,169 +186,50 @@ transition: all 0.2s ease;
   }
 }
 
-.mainContent {
-  animation: fadeInUp 0.3s ease-out;
-}
-```
-
-### 스피너 애니메이션
-```scss
 @keyframes spin {
-  to {
-    transform: translate(-50%, -50%) rotate(360deg);
-  }
-}
-
-.spinner {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  width: 1rem;
-  height: 1rem;
-  border: 2px solid transparent;
-  border-top: 2px solid currentColor;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
+  to { transform: rotate(360deg); }
 }
 ```
 
-## 접근성 스타일링
+## 금지사항
 
-### 스크린 리더 전용 텍스트
+- 하드코딩된 색상값 사용 (`#000000`, `rgb()` 등)
+- 8px 그리드 무시 (`margin: 5px` 등)
+- 반응형 믹스인 없이 미디어쿼리 직접 작성
+- `transition: all` 사용 (성능 저하)
+- 깊은 중첩 선택자 (3단계 이상)
+
+## 사용 예시
+
+### 반응형 컴포넌트
 ```scss
-@mixin sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-
-.sr-only {
-  @include sr-only;
-}
-```
-
-### 포커스 스타일
-```scss
-@mixin focus-visible {
-  &:focus-visible {
-    outline: 2px solid var(--color-primary);
-    outline-offset: 2px;
-  }
-}
-
-// 모든 인터랙티브 요소에 적용
-a, button, input, textarea, select {
-  @include focus-visible;
-}
-```
-
-## 스크롤바 커스터마이징
-
-### 웹킷 기반 스크롤바
-```scss
-@mixin scrollbar-style {
-  &::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+.component {
+  padding: var(--spacing-6);
+  
+  @include mobile {
+    padding: var(--spacing-4);
   }
   
-  &::-webkit-scrollbar-track {
-    background: var(--color-gray-100);
-    border-radius: var(--border-radius-full);
-  }
-  
-  &::-webkit-scrollbar-thumb {
-    background: var(--color-gray-400);
-    border-radius: var(--border-radius-full);
-    
-    &:hover {
-      background: var(--color-gray-500);
-    }
+  @include desktop-up {
+    max-width: 1200px;
+    margin: 0 auto;
   }
 }
-
-// 사용 예시
-.scrollable-content {
-  @include scrollbar-style;
-  overflow-y: auto;
-  max-height: 400px;
-}
 ```
 
-## 유틸리티 클래스
-
-### 텍스트 관련
+### 다크 모드 지원
 ```scss
-.text-center { text-align: center; }
-.text-left { text-align: left; }
-.text-right { text-align: right; }
-
-.font-bold { font-weight: var(--font-weight-bold); }
-.font-semibold { font-weight: var(--font-weight-semibold); }
-.font-medium { font-weight: var(--font-weight-medium); }
-
-.text-primary { color: var(--color-primary); }
-.text-success { color: var(--color-success); }
-.text-error { color: var(--color-error); }
-.text-warning { color: var(--color-warning); }
-```
-
-### 간격 관련
-```scss
-.mb-0 { margin-bottom: 0; }
-.mb-1 { margin-bottom: var(--spacing-1); }
-.mb-2 { margin-bottom: var(--spacing-2); }
-.mb-3 { margin-bottom: var(--spacing-3); }
-.mb-4 { margin-bottom: var(--spacing-4); }
-.mb-6 { margin-bottom: var(--spacing-6); }
-.mb-8 { margin-bottom: var(--spacing-8); }
-```
-
-## 성능 최적화
-
-### CSS 최적화 규칙
-```scss
-// ✅ 권장: CSS 변수 사용
-.component {
-  color: var(--color-primary);
-  padding: var(--spacing-4);
-}
-
-// ✅ 권장: 효율적인 선택자
-.component-title { /* ... */ }
-
-// ❌ 비권장: 깊은 중첩
-.page .content .section .article .title { /* ... */ }
-
-// ✅ 권장: 단순한 트랜지션
-transition: transform 0.2s ease;
-
-// ❌ 비권장: 모든 속성 트랜지션
-transition: all 0.2s ease;
-```
-
-### 다크 모드 최적화
-```scss
-// CSS 변수를 활용한 효율적인 다크 모드
-:root {
-  --text-color: var(--color-gray-900);
-  --bg-color: var(--color-white);
-}
-
-[data-bs-theme="dark"] {
-  --text-color: var(--color-gray-100);
-  --bg-color: var(--color-gray-900);
-}
-
-.component {
-  color: var(--text-color);
-  background-color: var(--bg-color);
+.card {
+  background: var(--bs-body-bg);
+  color: var(--bs-body-color);
+  box-shadow: var(--shadow);
 }
 ```
+
+## 체크리스트
+
+1. CSS 변수 사용 확인
+2. 8px 그리드 시스템 준수
+3. 반응형 믹스인 사용
+4. 다크 모드 지원 확인
+5. 접근성 포커스 스타일 적용

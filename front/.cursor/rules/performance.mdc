@@ -1,28 +1,85 @@
+---
+description: 성능 최적화 및 번들 관리
+alwaysApply: false
+---
 # Performance Rules
 
-## 번들 최적화
+## 필수 체크리스트
 
-### 코드 스플리팅
+1. **메모이제이션**: 복잡한 계산만 `useMemo`, 함수 전달시 `useCallback`
+2. **코드 스플리팅**: 라우트별 `lazy` 적용
+3. **이미지 최적화**: `loading="lazy"` 필수
+4. **이벤트 정리**: `useEffect` cleanup 함수 필수
+
+## 강제 패턴
+
+### 메모이제이션 규칙
 ```typescript
-// 라우트 기반 코드 스플리팅
-import { lazy, Suspense } from 'react';
+// ✅ 복잡한 계산만 메모이제이션
+const sortedTodos = useMemo(() => {
+  return todos.sort((a, b) => a.title.localeCompare(b.title));
+}, [todos]);
 
-const HomePage = lazy(() => import('@/pages/HomePage/HomePage'));
-const AboutPage = lazy(() => import('@/pages/AboutPage/AboutPage'));
+// ✅ 자식에 전달되는 함수만 useCallback
+const handleClick = useCallback(() => {
+  setCount(c => c + 1);
+}, []);
 
-export const AppRouter = () => (
-  <Router>
-    <Suspense fallback={<div>로딩 중...</div>}>
-      <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/about" element={<AboutPage />} />
-      </Routes>
-    </Suspense>
-  </Router>
+// ❌ 단순한 컴포넌트 React.memo 금지
+const SimpleButton = ({ children, onClick }) => (
+  <button onClick={onClick}>{children}</button>
 );
 ```
 
-### Vite 번들 설정
+### 코드 스플리팅
+```typescript
+const HomePage = lazy(() => import('@/pages/HomePage/HomePage'));
+
+<Suspense fallback={<div>로딩 중...</div>}>
+  <Routes>
+    <Route path="/" element={<HomePage />} />
+  </Routes>
+</Suspense>
+```
+
+### 이미지 최적화
+```typescript
+<img
+  src={src}
+  alt={alt}
+  loading="lazy"
+  decoding="async"
+/>
+```
+
+### TanStack Query 캐시 설정
+```typescript
+const useTodos = () => {
+  return useQuery({
+    queryKey: ['todos'],
+    queryFn: fetchTodos,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+};
+```
+
+### 이벤트 리스너 정리
+```typescript
+useEffect(() => {
+  const handleResize = () => { /* ... */ };
+  window.addEventListener('resize', handleResize);
+  
+  return () => {
+    window.removeEventListener('resize', handleResize);
+  };
+}, []);
+```
+
+## Vite 빌드 설정
+
+### 번들 분할
 ```typescript
 // vite.config.ts
 export default defineConfig({
@@ -31,8 +88,7 @@ export default defineConfig({
       output: {
         manualChunks: {
           vendor: ['react', 'react-dom'],
-          router: ['react-router-dom'],
-          ui: ['react-bootstrap', 'bootstrap'],
+          ui: ['react-bootstrap'],
           query: ['@tanstack/react-query'],
           supabase: ['@supabase/supabase-js'],
         },
@@ -40,376 +96,50 @@ export default defineConfig({
     },
     chunkSizeWarningLimit: 1000,
   },
-  css: {
-    codeSplit: true,
-  },
 });
 ```
 
-## React 메모이제이션
+## 금지사항
 
-### React.memo 사용 기준
-```typescript
-// ✅ 권장: 복잡한 렌더링 컴포넌트
-export const ExpensiveListItem = React.memo<ListItemProps>(({
-  item,
-  onUpdate,
-  isSelected
-}) => {
-  return (
-    <div className={isSelected ? 'selected' : ''}>
-      {/* 복잡한 렌더링 로직 */}
-    </div>
-  );
-});
-
-// ❌ 비권장: 단순한 컴포넌트
-const SimpleButton = React.memo(({ children, onClick }) => (
-  <button onClick={onClick}>{children}</button>
-));
-```
-
-### useMemo 패턴
-```typescript
-const TodoList: React.FC<TodoListProps> = ({ todos, filter, sortBy }) => {
-  // ✅ 권장: 비용이 큰 계산 메모이제이션
-  const filteredAndSortedTodos = useMemo(() => {
-    return todos
-      .filter(todo => {
-        switch (filter) {
-          case 'completed': return todo.completed;
-          case 'active': return !todo.completed;
-          default: return true;
-        }
-      })
-      .sort((a, b) => {
-        switch (sortBy) {
-          case 'date': return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-          case 'title': return a.title.localeCompare(b.title);
-          default: return 0;
-        }
-      });
-  }, [todos, filter, sortBy]);
-
-  return (
-    <div>
-      {filteredAndSortedTodos.map(todo => (
-        <TodoItem key={todo.id} todo={todo} />
-      ))}
-    </div>
-  );
-};
-```
-
-### useCallback 패턴
-```typescript
-const TodoApp: React.FC = () => {
-  const [todos, setTodos] = useState<Todo[]>([]);
-
-  // ✅ 권장: 자식 컴포넌트에 전달되는 함수
-  const handleTodoToggle = useCallback((id: string) => {
-    setTodos(prev => prev.map(todo => 
-      todo.id === id ? { ...todo, completed: !todo.completed } : todo
-    ));
-  }, []);
-
-  const handleTodoDelete = useCallback((id: string) => {
-    setTodos(prev => prev.filter(todo => todo.id !== id));
-  }, []);
-
-  return (
-    <TodoList 
-      todos={todos}
-      onToggle={handleTodoToggle}
-      onDelete={handleTodoDelete}
-    />
-  );
-};
-```
-
-## 이미지 최적화
-
-### 지연 로딩
-```typescript
-const OptimizedImage: React.FC<ImageProps> = ({
-  src, alt, width, height, className
-}) => {
-  return (
-    <img
-      src={src}
-      alt={alt}
-      width={width}
-      height={height}
-      className={className}
-      loading="lazy"
-      decoding="async"
-    />
-  );
-};
-```
-
-### 반응형 이미지
-```typescript
-const ResponsiveImage: React.FC = () => {
-  return (
-    <img
-      src="/images/hero-1200.jpg"
-      srcSet="
-        /images/hero-400.jpg 400w,
-        /images/hero-800.jpg 800w,
-        /images/hero-1200.jpg 1200w
-      "
-      sizes="
-        (max-width: 768px) 400px,
-        (max-width: 1024px) 800px,
-        1200px
-      "
-      alt="Hero Image"
-      loading="lazy"
-    />
-  );
-};
-```
-
-## 네트워크 최적화
-
-### TanStack Query 최적화
-```typescript
-const useTodos = () => {
-  return useQuery({
-    queryKey: ['todos'],
-    queryFn: fetchTodos,
-    staleTime: 5 * 60 * 1000,          // 5분간 fresh
-    gcTime: 10 * 60 * 1000,            // 10분간 캐시 보관
-    refetchOnWindowFocus: false,
-  });
-};
-
-// 병렬 쿼리 최적화
-const useUserDashboard = (userId: string) => {
-  const userQuery = useQuery({
-    queryKey: ['user', userId],
-    queryFn: () => fetchUser(userId),
-  });
-
-  const todosQuery = useQuery({
-    queryKey: ['todos', userId],
-    queryFn: () => fetchUserTodos(userId),
-    enabled: !!userId,
-  });
-
-  return {
-    user: userQuery.data,
-    todos: todosQuery.data,
-    isLoading: userQuery.isLoading || todosQuery.isLoading,
-  };
-};
-```
-
-## 무한 스크롤
-
-### TanStack Query 무한 스크롤
-```typescript
-const useTodosInfinite = (filter: string) => {
-  return useInfiniteQuery({
-    queryKey: ['todos', 'infinite', filter],
-    queryFn: ({ pageParam = 0 }) => 
-      fetchTodos({ page: pageParam, filter, limit: 20 }),
-    getNextPageParam: (lastPage, allPages) => {
-      return lastPage.hasMore ? allPages.length : undefined;
-    },
-    staleTime: 5 * 60 * 1000,
-  });
-};
-
-const InfiniteTodoList: React.FC = () => {
-  const {
-    data,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-  } = useTodosInfinite('all');
-
-  const { ref } = useInView({
-    threshold: 0.1,
-    onChange: (inView) => {
-      if (inView && hasNextPage && !isFetchingNextPage) {
-        fetchNextPage();
-      }
-    },
-  });
-
-  return (
-    <div>
-      {data?.pages.map((page, pageIndex) => (
-        <div key={pageIndex}>
-          {page.todos.map(todo => (
-            <TodoItem key={todo.id} todo={todo} />
-          ))}
-        </div>
-      ))}
-      <div ref={ref}>
-        {isFetchingNextPage && <div>더 로딩 중...</div>}
-      </div>
-    </div>
-  );
-};
-```
+- 단순 컴포넌트에 `React.memo` 사용
+- 모든 함수에 `useCallback` 적용
+- 간단한 계산에 `useMemo` 사용
+- CSS `transition: all` 사용
+- 전체 라이브러리 import (`import *`)
+- `useEffect` cleanup 함수 누락
 
 ## CSS 최적화
 
-### 효율적인 스타일링
 ```scss
-// ✅ 권장: 효율적인 선택자
-.todo-item {
-  display: flex;
-  align-items: center;
-}
+// ✅ 효율적인 선택자
+.todo-item { display: flex; }
 
-// ❌ 비권장: 깊은 중첩
+// ❌ 깊은 중첩 금지
 .page .content .section .article .todo-item { }
 
-// ✅ 권장: 단일 속성 트랜지션
-.card {
-  transition: transform 0.2s ease;
-}
+// ✅ 단일 속성 트랜지션
+.card { transition: transform 0.2s ease; }
 
-// ❌ 비권장: 모든 속성 트랜지션
-.card {
-  transition: all 0.2s ease;
-}
+// ❌ 모든 속성 트랜지션 금지
+.card { transition: all 0.2s ease; }
 ```
 
-## 성능 측정
+## Import 최적화
 
-### Web Vitals
 ```typescript
-import { getCLS, getFID, getFCP, getLCP, getTTFB } from 'web-vitals';
-
-export const measureWebVitals = () => {
-  getCLS(console.log);  // Cumulative Layout Shift
-  getFID(console.log);  // First Input Delay
-  getFCP(console.log);  // First Contentful Paint
-  getLCP(console.log);  // Largest Contentful Paint
-  getTTFB(console.log); // Time to First Byte
-};
-
-// main.tsx에서 측정
-if (process.env.NODE_ENV === 'production') {
-  measureWebVitals();
-}
-```
-
-### React Profiler
-```typescript
-import { Profiler } from 'react';
-
-const onRenderCallback = (
-  id: string,
-  phase: 'mount' | 'update',
-  actualDuration: number
-) => {
-  console.log('Profiler:', { id, phase, actualDuration });
-};
-
-export const ProfiledComponent: React.FC = ({ children }) => (
-  <Profiler id="TodoApp" onRender={onRenderCallback}>
-    {children}
-  </Profiler>
-);
-```
-
-## Tree Shaking 최적화
-
-### 올바른 Import
-```typescript
-// ✅ 권장: 명시적 import
+// ✅ 명시적 import
 import { debounce } from 'lodash';
 import { format } from 'date-fns';
 
-// ❌ 비권장: 전체 라이브러리 import
+// ❌ 전체 라이브러리 import 금지
 import _ from 'lodash';
 import * as dateFns from 'date-fns';
 ```
 
-### 환경별 최적화
-```typescript
-// 개발환경에서만 로드
-if (process.env.NODE_ENV === 'development') {
-  import('@/lib/dev-tools').then(module => {
-    module.initDevTools();
-  });
-}
+## 체크리스트
 
-// 프로덕션에서만 로드
-if (process.env.NODE_ENV === 'production') {
-  import('@/lib/analytics').then(module => {
-    module.initAnalytics();
-  });
-}
-```
-
-## 메모리 관리
-
-### 이벤트 리스너 정리
-```typescript
-const useWindowResize = () => {
-  const [windowSize, setWindowSize] = useState({
-    width: window.innerWidth,
-    height: window.innerHeight,
-  });
-
-  useEffect(() => {
-    const handleResize = () => {
-      setWindowSize({
-        width: window.innerWidth,
-        height: window.innerHeight,
-      });
-    };
-
-    window.addEventListener('resize', handleResize);
-    
-    // ✅ 중요: 정리 함수
-    return () => {
-      window.removeEventListener('resize', handleResize);
-    };
-  }, []);
-
-  return windowSize;
-};
-```
-
-### 메모리 누수 방지
-```typescript
-const useApiPolling = (url: string, interval: number) => {
-  const [data, setData] = useState(null);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const fetchData = async () => {
-      try {
-        const response = await fetch(url);
-        const result = await response.json();
-        
-        if (isMounted) {
-          setData(result);
-        }
-      } catch (error) {
-        if (isMounted) {
-          console.error('Fetch error:', error);
-        }
-      }
-    };
-
-    const intervalId = setInterval(fetchData, interval);
-
-    return () => {
-      isMounted = false;
-      clearInterval(intervalId);
-    };
-  }, [url, interval]);
-
-  return data;
-};
-```
+1. 컴포넌트 re-render 최소화
+2. 번들 크기 1MB 이하 유지
+3. Core Web Vitals 기준 충족
+4. 메모리 누수 방지 (cleanup 함수)
+5. 이미지 lazy loading 적용

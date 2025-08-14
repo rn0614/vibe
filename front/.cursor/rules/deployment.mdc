@@ -1,590 +1,130 @@
+---
+description: 배포 환경 설정 및 CI/CD 파이프라인
+alwaysApply: false
+---
 # Deployment Rules
 
-## 환경 설정
+## 필수 체크리스트
 
-### 환경별 변수 관리
+1. **환경변수 검증**: 모든 `VITE_*` 환경변수 존재 확인
+2. **빌드 성공**: TypeScript 에러 없는 상태
+3. **테스트 통과**: E2E 테스트 성공
+4. **브랜치 전략**: main(prod), develop(staging) 준수
+
+## 강제 패턴
+
+### 환경변수 구조
 ```bash
-# .env.local (개발용, gitignore)
-VITE_SUPABASE_URL=your_dev_supabase_url
-VITE_SUPABASE_ANON_KEY=your_dev_supabase_key
-VITE_SUPABASE_PROJECT_ID=your_dev_project_id
-VITE_APP_URL=http://localhost:5173
-
-# .env.production (배포용)
-VITE_SUPABASE_URL=your_prod_supabase_url
-VITE_SUPABASE_ANON_KEY=your_prod_supabase_key
-VITE_SUPABASE_PROJECT_ID=your_prod_project_id
-VITE_APP_URL=https://your-domain.com
-
-# .env.example (템플릿)
 VITE_SUPABASE_URL=your_supabase_url
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 VITE_SUPABASE_PROJECT_ID=your_project_id
 VITE_APP_URL=your_app_url
 ```
 
-### 환경별 설정 파일
+### 환경변수 검증
 ```typescript
-// src/config/environment.ts
-export const config = {
-  supabase: {
-    url: import.meta.env.VITE_SUPABASE_URL,
-    anonKey: import.meta.env.VITE_SUPABASE_ANON_KEY,
-    projectId: import.meta.env.VITE_SUPABASE_PROJECT_ID,
-  },
-  app: {
-    url: import.meta.env.VITE_APP_URL,
-    name: 'Vibe',
-    version: import.meta.env.PACKAGE_VERSION || '1.0.0',
-  },
-  isDevelopment: import.meta.env.DEV,
-  isProduction: import.meta.env.PROD,
-};
-
-// 환경 변수 검증
-const requiredEnvVars = [
-  'VITE_SUPABASE_URL',
-  'VITE_SUPABASE_ANON_KEY',
-  'VITE_SUPABASE_PROJECT_ID',
-];
-
-requiredEnvVars.forEach((envVar) => {
+const requiredVars = ['VITE_SUPABASE_URL', 'VITE_SUPABASE_ANON_KEY'];
+requiredVars.forEach((envVar) => {
   if (!import.meta.env[envVar]) {
-    throw new Error(`Missing required environment variable: ${envVar}`);
+    throw new Error(`Missing: ${envVar}`);
   }
 });
 ```
 
-## 빌드 프로세스
-
-### Vite 빌드 설정
-```typescript
-// vite.config.ts
-export default defineConfig({
-  build: {
-    outDir: 'dist',
-    sourcemap: true,
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: true,        // 프로덕션에서 console.log 제거
-        drop_debugger: true,       // debugger 문 제거
-      },
-    },
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom'],
-          router: ['react-router-dom'],
-          ui: ['react-bootstrap', 'bootstrap'],
-          query: ['@tanstack/react-query'],
-          supabase: ['@supabase/supabase-js'],
-        },
-        assetFileNames: 'assets/[name]-[hash][extname]',
-        chunkFileNames: 'assets/[name]-[hash].js',
-        entryFileNames: 'assets/[name]-[hash].js',
-      },
-    },
-    // 번들 크기 분석
-    reportCompressedSize: true,
-    chunkSizeWarningLimit: 1000,
-  },
-  
-  // CSS 최적화
-  css: {
-    devSourcemap: true,
-  },
-  
-  // PWA 설정 (필요시)
-  // plugins: [
-  //   react(),
-  //   VitePWA({
-  //     registerType: 'autoUpdate',
-  //     workbox: {
-  //       globPatterns: ['**/*.{js,css,html,ico,png,svg}']
-  //     }
-  //   })
-  // ],
-});
-```
-
-### 빌드 스크립트
+### 빌드 명령어
 ```json
-// package.json
 {
   "scripts": {
     "build": "tsc -b && vite build",
-    "build:analyze": "npm run build && npx vite-bundle-analyzer dist",
-    "build:staging": "tsc -b && vite build --mode staging",
-    "build:production": "tsc -b && vite build --mode production",
-    "preview": "vite preview",
-    "preview:dist": "vite preview --port 4173"
+    "build:staging": "vite build --mode staging",
+    "build:production": "vite build --mode production"
   }
 }
 ```
 
-## Git 브랜치 전략
-
-### Git Flow 브랜치 구조
+### Git 브랜치 네이밍
 ```bash
-main            # 프로덕션 배포 브랜치
-├── develop     # 개발 통합 브랜치
-├── feature/*   # 기능 개발 브랜치
-├── release/*   # 릴리스 준비 브랜치
-└── hotfix/*    # 긴급 수정 브랜치
-```
-
-### 브랜치 네이밍 규칙
-```bash
-# 기능 개발
-feature/user-authentication
-feature/todo-crud-operations
-feature/ui-theme-toggle
-
-# 버그 수정
-bugfix/header-mobile-layout
-bugfix/api-error-handling
-
-# 핫픽스
-hotfix/security-vulnerability
-hotfix/critical-login-bug
-
-# 릴리스
+feature/기능명
+bugfix/버그명
+hotfix/긴급수정명
 release/v1.0.0
-release/v1.1.0
 ```
 
-### 커밋 메시지 규칙
+### 커밋 메시지 형식
 ```bash
-# 타입(스코프): 설명
-
-feat(auth): Google OAuth 로그인 구현
-fix(ui): 모바일에서 헤더 레이아웃 수정
-docs(readme): 환경 설정 가이드 추가
-style(components): Button 컴포넌트 스타일 개선
-refactor(api): Supabase 클라이언트 구조 개선
-test(e2e): 헤더 인증 상태 테스트 추가
-chore(deps): React Query 버전 업데이트
+feat(scope): 설명
+fix(scope): 설명
+docs(scope): 설명
+refactor(scope): 설명
+test(scope): 설명
+chore(scope): 설명
 ```
 
-## CI/CD 파이프라인
+## 배포 환경
 
-### GitHub Actions 워크플로우
+### GitHub Actions 기본 템플릿
 ```yaml
-# .github/workflows/ci.yml
-name: CI/CD Pipeline
-
+name: CI/CD
 on:
   push:
-    branches: [ main, develop ]
-  pull_request:
-    branches: [ main, develop ]
-
+    branches: [main, develop]
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
-    
-    - name: Install dependencies
-      run: |
-        cd front
-        npm ci
-    
-    - name: Run linting
-      run: |
-        cd front
-        npm run lint
-    
-    - name: Type check
-      run: |
-        cd front
-        npm run build
-    
-    - name: Run E2E tests
-      run: |
-        cd front
-        npx playwright install --with-deps
-        npm run test:e2e
-    
-    - name: Upload test results
-      uses: actions/upload-artifact@v3
-      if: always()
-      with:
-        name: playwright-report
-        path: front/playwright-report/
-
   build:
-    needs: test
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    
     steps:
     - uses: actions/checkout@v4
-    
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
+    - uses: actions/setup-node@v4
       with:
         node-version: '18'
         cache: 'npm'
-    
-    - name: Install dependencies
-      run: |
-        cd front
-        npm ci
-    
-    - name: Build application
-      run: |
-        cd front
-        npm run build
-      env:
-        VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-        VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-        VITE_SUPABASE_PROJECT_ID: ${{ secrets.VITE_SUPABASE_PROJECT_ID }}
-    
-    - name: Upload build artifacts
-      uses: actions/upload-artifact@v3
-      with:
-        name: dist
-        path: front/dist/
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    
-    steps:
-    - name: Download build artifacts
-      uses: actions/download-artifact@v3
-      with:
-        name: dist
-        path: ./dist
-    
-    - name: Deploy to production
-      # 배포 설정은 호스팅 서비스에 따라 다름
-      run: echo "Deploy to production"
+    - run: cd front && npm ci
+    - run: cd front && npm run build
 ```
-
-### Staging 환경 배포
-```yaml
-# .github/workflows/staging.yml
-name: Deploy to Staging
-
-on:
-  push:
-    branches: [ develop ]
-
-jobs:
-  deploy-staging:
-    runs-on: ubuntu-latest
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
-    
-    - name: Install and build
-      run: |
-        cd front
-        npm ci
-        npm run build:staging
-      env:
-        VITE_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
-        VITE_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
-        VITE_SUPABASE_PROJECT_ID: ${{ secrets.STAGING_SUPABASE_PROJECT_ID }}
-    
-    - name: Deploy to Staging
-      run: echo "Deploy to staging environment"
-```
-
-## 호스팅 플랫폼별 설정
 
 ### Vercel 설정
 ```json
-// vercel.json
 {
   "framework": "vite",
   "buildCommand": "cd front && npm run build",
   "outputDirectory": "front/dist",
-  "installCommand": "cd front && npm ci",
-  "devCommand": "cd front && npm run dev",
-  "cleanUrls": true,
-  "trailingSlash": false,
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
-  ],
-  "headers": [
-    {
-      "source": "/assets/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
-        }
-      ]
-    }
-  ]
+  "rewrites": [{"source": "/(.*)", "destination": "/index.html"}]
 }
 ```
 
 ### Netlify 설정
 ```toml
-# netlify.toml
 [build]
   command = "cd front && npm run build"
   publish = "front/dist"
-
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
-
-[[headers]]
-  for = "/assets/*"
-  [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
 ```
 
-### Docker 설정
-```dockerfile
-# Dockerfile
-FROM node:18-alpine AS builder
+## 금지사항
 
-WORKDIR /app
-COPY front/package*.json ./
-RUN npm ci
+- 민감한 정보를 `VITE_` 접두사로 설정
+- main 브랜치에 직접 커밋
+- 테스트 없이 배포
+- 환경변수 검증 생략
+- 빌드 에러 무시
 
-COPY front/ .
-RUN npm run build
+## 배포 체크리스트
 
-FROM nginx:alpine
-COPY --from=builder /app/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/nginx.conf
+1. 환경변수 설정 확인
+2. `npm run build` 성공 확인
+3. `npm run test:e2e` 통과 확인
+4. Git 브랜치 전략 준수
+5. 헬스체크 URL 동작 확인
 
-EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
-```
+## 롤백 절차
 
-```nginx
-# nginx.conf
-events {
-    worker_connections 1024;
-}
-
-http {
-    include /etc/nginx/mime.types;
-    default_type application/octet-stream;
-
-    server {
-        listen 80;
-        server_name localhost;
-        root /usr/share/nginx/html;
-        index index.html;
-
-        # SPA 라우팅 지원
-        location / {
-            try_files $uri $uri/ /index.html;
-        }
-
-        # 정적 자산 캐싱
-        location /assets/ {
-            expires 1y;
-            add_header Cache-Control "public, immutable";
-        }
-
-        # Gzip 압축
-        gzip on;
-        gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;
-    }
-}
-```
-
-## 환경별 배포 전략
-
-### 배포 환경 구분
 ```bash
-Development  → 개발자 로컬 환경
-Staging      → 테스트 환경 (develop 브랜치)
-Production   → 운영 환경 (main 브랜치)
+# 이전 태그로 롤백
+git tag -l
+git checkout v1.0.0
+npm run build:production
+# 재배포
 ```
-
-### Blue-Green 배포
-```yaml
-# 무중단 배포를 위한 Blue-Green 전략
-name: Blue-Green Deployment
-
-on:
-  push:
-    branches: [ main ]
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    
-    steps:
-    - name: Deploy to Green environment
-      run: |
-        # Green 환경에 새 버전 배포
-        echo "Deploying to green environment"
-    
-    - name: Health check
-      run: |
-        # Green 환경 상태 확인
-        echo "Health checking green environment"
-    
-    - name: Switch traffic
-      run: |
-        # Blue → Green으로 트래픽 전환
-        echo "Switching traffic to green"
-    
-    - name: Cleanup old environment
-      run: |
-        # 이전 Blue 환경 정리
-        echo "Cleaning up blue environment"
-```
-
-## 배포 후 확인사항
-
-### 헬스 체크
-```typescript
-// src/lib/health-check.ts
-export const performHealthCheck = async () => {
-  const checks = [
-    {
-      name: 'Supabase Connection',
-      check: async () => {
-        const { data, error } = await supabase.from('tb_todolist').select('count').limit(1);
-        return !error;
-      }
-    },
-    {
-      name: 'Environment Variables',
-      check: async () => {
-        return !!(
-          import.meta.env.VITE_SUPABASE_URL &&
-          import.meta.env.VITE_SUPABASE_ANON_KEY
-        );
-      }
-    },
-    {
-      name: 'API Endpoints',
-      check: async () => {
-        try {
-          const response = await fetch('/api/health');
-          return response.ok;
-        } catch {
-          return false;
-        }
-      }
-    }
-  ];
-
-  const results = await Promise.all(
-    checks.map(async ({ name, check }) => ({
-      name,
-      status: await check(),
-      timestamp: new Date().toISOString()
-    }))
-  );
-
-  return results;
-};
-```
-
-### 모니터링 설정
-```typescript
-// src/lib/monitoring.ts
-export const initMonitoring = () => {
-  // 에러 모니터링
-  window.addEventListener('error', (event) => {
-    console.error('Global error:', event.error);
-    // 에러 리포팅 서비스에 전송
-  });
-
-  // 성능 모니터링
-  if ('performance' in window) {
-    window.addEventListener('load', () => {
-      setTimeout(() => {
-        const perfData = performance.getEntriesByType('navigation')[0];
-        console.log('Page load time:', perfData.loadEventEnd - perfData.loadEventStart);
-      }, 0);
-    });
-  }
-};
-```
-
-## 롤백 전략
-
-### 자동 롤백 조건
-```yaml
-# GitHub Actions에서 자동 롤백
-- name: Health check after deployment
-  run: |
-    sleep 30  # 배포 후 안정화 대기
-    curl -f https://your-domain.com/api/health || exit 1
-
-- name: Rollback on failure
-  if: failure()
-  run: |
-    echo "Deployment failed, initiating rollback"
-    # 이전 버전으로 롤백 로직
-```
-
-### 수동 롤백 절차
-```bash
-# Git 태그 기반 롤백
-git tag -l                    # 사용 가능한 태그 확인
-git checkout v1.0.0          # 특정 버전으로 체크아웃
-npm run build:production     # 해당 버전 빌드
-# 배포 스크립트 실행
-```
-
-## 보안 설정
-
-### 환경 변수 보안
-```typescript
-// 민감한 정보는 절대 클라이언트에 노출하지 않음
-// ❌ 비권장: private key나 secret을 VITE_ 접두사로 설정
-// ✅ 권장: public key나 URL만 클라이언트에 노출
-
-// 런타임에서 환경 변수 검증
-const validateEnvironment = () => {
-  const requiredVars = [
-    'VITE_SUPABASE_URL',
-    'VITE_SUPABASE_ANON_KEY',
-  ];
-
-  const missingVars = requiredVars.filter(
-    varName => !import.meta.env[varName]
-  );
-
-  if (missingVars.length > 0) {
-    throw new Error(`Missing environment variables: ${missingVars.join(', ')}`);
-  }
-};
-```
-
-### CSP (Content Security Policy)
-```html
-<!-- index.html에 CSP 헤더 추가 -->
-<meta http-equiv="Content-Security-Policy" 
-      content="default-src 'self'; 
-               script-src 'self' 'unsafe-inline'; 
-               style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; 
-               font-src 'self' https://fonts.gstatic.com;
-               connect-src 'self' https://*.supabase.co;">
 ```

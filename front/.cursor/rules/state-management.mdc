@@ -1,329 +1,159 @@
+---
+description: TanStack Query, Zustand 상태 관리 패턴
+alwaysApply: false
+---
 # State Management Rules
 
-## ⚠️ 데이터베이스 스키마 우선 확인
+## 필수 체크리스트
 
-**상태 관리 코드 작성 전에 반드시 실제 데이터베이스 스키마를 확인하세요:**
+1. **스키마 확인**: `front/src/shared/types/database.ts` 타입 사용
+2. **Soft Delete**: 모든 조회에 `deleted_at IS NULL` 필터
+3. **Query Keys**: 표준화된 키 구조 사용
+4. **상태 분리**: 서버 상태(TanStack Query) vs 클라이언트 상태(React State)
 
-📁 **`front/src/shared/types/database.ts`**
+## 강제 패턴
 
+### 스키마 기반 타입
 ```typescript
-// ✅ 올바른 방법: 먼저 스키마 확인
 import type { Tables, TablesInsert, TablesUpdate } from '@/shared/types/database';
-
-// 실제 스키마를 기반으로 타입 정의
-type User = Tables<'users'>;
 type TodoItem = Tables<'tb_todolist'>;
 type CreateTodo = TablesInsert<'tb_todolist'>;
-type UpdateTodo = TablesUpdate<'tb_todolist'>;
-
-// ❌ 잘못된 방법: 추측으로 인터페이스 정의
-interface Todo {
-  id: number;
-  text: string; // 실제로는 'title' 필드일 수 있음!
-}
 ```
 
-## 🗑️ Soft Delete 상태 관리 (필수 준수)
-
-**`deleted_at` 필드가 있는 테이블은 반드시 Soft Delete 패턴을 적용하세요.**
-
-### Query 작성 시 기본 패턴
+### Soft Delete 쿼리
 ```typescript
-// ✅ 모든 조회 쿼리에 deleted_at 필터 적용
-const todosQuery = React.useMemo(() => {
-  let query = createSupabaseQuery('tb_todolist')
-    .select('*')
-    .where('deleted_at', 'is', null); // 필수!
-  
-  // 추가 필터링, 정렬, 페이지네이션 등...
-  return query;
-}, [dependencies]);
+// ✅ 모든 조회에 필수
+const todosQuery = createSupabaseQuery('tb_todolist')
+  .select('*')
+  .where('deleted_at', 'is', null);
 
-// ❌ 잘못된 방법: deleted_at 필터 누락
-const badQuery = createSupabaseQuery('tb_todolist').select('*');
-```
-
-### Mutation에서 Soft Delete 적용
-```typescript
-// ✅ Soft Delete: update 뮤테이션 사용
-const softDeleteTodo = (todoId: string) => {
-  updateTodo.mutate({
-    id: todoId,
-    data: {
-      deleted_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }
-  });
-};
-
-// ❌ 잘못된 방법: delete 뮤테이션 사용
-const hardDeleteTodo = (todoId: string) => {
-  deleteTodo.mutate({ id: todoId }); // 사용 금지!
-};
-```
-
-### 상태 확인 로직
-```typescript
-// ✅ 수정/삭제 전 deleted_at 확인
-const handleEdit = (item: TodoItem) => {
-  if (item.deleted_at !== null) {
-    alert('삭제된 항목은 수정할 수 없습니다.');
-    return;
+// ✅ Soft Delete 실행
+updateTodo.mutate({
+  id: todoId,
+  data: { 
+    deleted_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
   }
-  // 수정 로직...
-};
-
-const handleDelete = (item: TodoItem) => {
-  if (item.deleted_at !== null) {
-    alert('이미 삭제된 항목입니다.');
-    return;
-  }
-  // Soft Delete 로직...
-};
+});
 ```
 
-## TanStack Query 설정
-
-### Query Client 기본 설정
+### TanStack Query 설정
 ```typescript
-// src/app/providers/query/QueryProvider.tsx
 const createQueryClient = () => new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000,        // 5분간 캐시 유지
-      gcTime: 10 * 60 * 1000,          // 10분간 캐시 보관
-      retry: 1,                        // 에러 시 재시도 1회
-      refetchOnWindowFocus: false,     // 윈도우 포커스 시 자동 리페치 비활성화
-      refetchOnReconnect: true,        // 네트워크 재연결 시 자동 리페치
+      staleTime: 5 * 60 * 1000,
+      gcTime: 10 * 60 * 1000,
+      retry: 1,
+      refetchOnWindowFocus: false,
     },
     mutations: {
-      retry: false,                    // 뮤테이션 에러 시 재시도 없음
+      retry: false,
     },
   },
 });
 ```
 
-### DevTools 설정
+### 뮤테이션 패턴
 ```typescript
-export const QueryProvider: React.FC<QueryProviderProps> = ({ children }) => {
-  const [queryClient] = useState(createQueryClient);
+const createTodo = useSupabaseMutationBuilder('tb_todolist', 'insert', {
+  invalidateQueries: ['tb_todolist'],
+  onSuccess: (data) => console.log('Success:', data),
+  onError: (error) => console.error('Error:', error)
+});
 
-  return (
-    <QueryClientProvider client={queryClient}>
-      {children}
-      {/* 개발 환경에서만 DevTools 표시 */}
-      {import.meta.env.DEV && (
-        <ReactQueryDevtools 
-          initialIsOpen={false}
-          position="bottom"
-        />
-      )}
-    </QueryClientProvider>
-  );
-};
+// 사용
+createTodo.mutate({ 
+  data: { title: 'New Todo', user_id: userId } 
+});
 ```
 
-## 쿼리 키 관리 전략
+### 커스텀 훅 네이밍
+```typescript
+// ✅ 권장
+use{Domain}{Action}    // useAuthSignIn
+use{Domain}{Entity}    // useAuthUser
+use{Domain}{State}     // useThemeState
 
-### 표준화된 Query Key 생성
+// ❌ 금지
+useAuth               // 모호함
+useGetUser            // 불필요한 Get
+```
+
+## Query Key 구조
+
+### 표준 키 생성
 ```typescript
 export const createQueryKeys = (entity: string) => ({
   all: () => [entity] as const,
   lists: () => [...createQueryKeys(entity).all(), 'list'] as const,
   list: (filters: Record<string, unknown>) => 
     [...createQueryKeys(entity).lists(), filters] as const,
-  details: () => [...createQueryKeys(entity).all(), 'detail'] as const,
-  detail: (id: string) => [...createQueryKeys(entity).details(), id] as const,
+  detail: (id: string) => [...createQueryKeys(entity).all(), 'detail', id] as const,
 });
 
-// 공통 Query Keys 정의
 export const QUERY_KEYS = {
-  users: createQueryKeys('users'),
   todos: createQueryKeys('todos'),
-  posts: createQueryKeys('posts'),
-} as const;
-```
-
-### Query Key 사용 패턴
-```typescript
-// ✅ 권장 사용법
-const userKeys = QUERY_KEYS.users;
-
-// 모든 사용자 쿼리 무효화
-queryClient.invalidateQueries({ queryKey: userKeys.all() });
-
-// 특정 사용자 상세 정보 무효화
-queryClient.invalidateQueries({ queryKey: userKeys.detail('123') });
-```
-
-## Supabase Query Builder 패턴
-
-### 기본 사용법
-```typescript
-// 체이닝 가능한 쿼리 빌더
-const usersQuery = createSupabaseQuery('users')
-  .select('id, name, email, avatar_url')
-  .where('status', 'eq', 'active')
-  .search(['name', 'email'], searchTerm)
-  .paginate({ page: 0, size: 20 })
-  .sort('created_at', 'desc');
-
-// TanStack Query와 통합
-const { data: users, isLoading } = useSupabaseQueryBuilder(usersQuery, {
-  enabled: !!searchTerm,
-  staleTime: 2 * 60 * 1000,
-});
-```
-
-### 타입 안전한 메서드
-```typescript
-// 타입 안전한 쿼리 빌더 사용
-const todosQuery = createSupabaseQuery('tb_todolist')
-  .selectColumns(['id', 'created_at'])              // 타입 안전한 컬럼 선택
-  .whereEq('user_id', currentUser.id)               // 타입 안전한 조건
-  .searchInColumn('title', searchTerm)              // 단일 컬럼 검색
-  .orderByDesc('created_at')                        // 내림차순 정렬
-  .withCount();                                     // 데이터와 카운트 함께 조회
-
-const { data: result } = useSupabaseQueryBuilder(todosQuery);
-// result: { data: TodoItem[], totalCount: number }
-```
-
-## 뮤테이션 패턴
-
-### CRUD 뮤테이션
-```typescript
-// 기본 뮤테이션 설정
-const createTodo = useSupabaseMutationBuilder('tb_todolist', 'insert', {
-  invalidateQueries: ['tb_todolist'],
-  onSuccess: (newTodo) => {
-    console.log('Todo 생성됨:', newTodo);
-  },
-  onError: (error) => {
-    console.error('Todo 생성 실패:', error);
-  }
-});
-
-const updateTodo = useSupabaseMutationBuilder('tb_todolist', 'update', {
-  invalidateQueries: ['tb_todolist']
-});
-
-const deleteTodo = useSupabaseMutationBuilder('tb_todolist', 'delete', {
-  invalidateQueries: ['tb_todolist']
-});
-
-// 사용법
-createTodo.mutate({ data: { title: 'New Todo', user_id: userId } });
-updateTodo.mutate({ id: todoId, data: { completed: true } });
-deleteTodo.mutate({ id: todoId });
-```
-
-### 옵티미스틱 업데이트
-```typescript
-const useOptimisticTodoUpdate = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: Partial<TodoItem> }) => {
-      const { data: updated, error } = await supabase
-        .from('tb_todolist')
-        .update(data)
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return updated;
-    },
-    
-    onMutate: async ({ id, data }) => {
-      // 진행 중인 쿼리 취소
-      await queryClient.cancelQueries({ queryKey: QUERY_KEYS.todos.all() });
-
-      // 이전 데이터 백업
-      const previousTodos = queryClient.getQueryData(QUERY_KEYS.todos.list({}));
-
-      // 낙관적 업데이트
-      queryClient.setQueryData(QUERY_KEYS.todos.list({}), (old: TodoItem[]) =>
-        old?.map(todo => todo.id === id ? { ...todo, ...data } : todo)
-      );
-
-      return { previousTodos };
-    },
-    
-    onError: (err, variables, context) => {
-      // 에러 시 이전 데이터로 롤백
-      if (context?.previousTodos) {
-        queryClient.setQueryData(QUERY_KEYS.todos.list({}), context.previousTodos);
-      }
-    },
-    
-    onSettled: () => {
-      // 완료 후 데이터 새로고침
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.todos.all() });
-    },
-  });
+  users: createQueryKeys('users'),
 };
 ```
 
-## 커스텀 훅 가이드
+## 상태 분리 원칙
 
-### 네이밍 컨벤션
+### 서버 상태 (TanStack Query)
 ```typescript
-// ✅ 권장 네이밍
-use{Domain}{Action}        // useAuthSignIn, useUserCreate
-use{Domain}{Entity}        // useAuthUser, useUserProfile
-use{Domain}{State}         // useAuthState, useThemeState
-
-// ❌ 비권장
-useAuth                    // 너무 모호함
-useGetUser                 // 불필요한 Get 접두사
-useUserData                // Data 접미사는 불필요
+// 서버에서 가져오는 데이터
+const { data: user } = useAuth();
+const { data: todos } = useSupabaseQueryBuilder(todosQuery);
 ```
 
-### 도메인별 훅 구조
+### 클라이언트 상태 (React State)
+```typescript
+// 클라이언트 전용 상태
+const [isModalOpen, setIsModalOpen] = useState(false);
+const [searchTerm, setSearchTerm] = useState('');
+const { theme, setTheme } = useTheme();
+```
+
+### Zustand (글로벌 클라이언트 상태)
+```typescript
+const useUIStore = create<UIState>((set) => ({
+  isLoadingGlobal: false,
+  modalStack: [],
+  setGlobalLoading: (isLoading) => set({ isLoadingGlobal: isLoading }),
+}));
+```
+
+## 금지사항
+
+- `interface` 직접 정의 (스키마 타입 대신)
+- `deleted_at` 필터 누락
+- Hard Delete (`deleteTodo.mutate`)
+- 비표준 Query Key 구조
+- 서버 상태를 React State로 관리
+- 클라이언트 상태를 TanStack Query로 관리
+
+## 도메인별 훅 구조
+
+### 기본 훅
 ```typescript
 // src/domains/auth/hooks/useAuth.ts
 export const useAuth = () => {
-  // TanStack Query를 활용한 사용자 상태 관리
   const userQuery = useQuery({
-    queryKey: AUTH_USER_QUERY_KEY,
-    queryFn: async (): Promise<User | null> => {
-      try {
-        const response = await authApi.getCurrentUser();
-        return response.data.data.user;
-      } catch {
-        return null;
-      }
-    },
+    queryKey: ['auth', 'user'],
+    queryFn: getCurrentUser,
     staleTime: 5 * 60 * 1000,
-    retry: (failureCount, error: ApiException) => {
-      if (error?.status === 401 || error?.status === 403) {
-        return false;
-      }
-      return failureCount < 2;
-    },
   });
 
-  // 뮤테이션들
-  const signOutMutation = useMutation({ /* ... */ });
-
   return {
-    // 상태
     user: userQuery.data ?? null,
     isLoading: userQuery.isLoading,
     isAuthenticated: !!userQuery.data,
-    
-    // 액션
-    signOut: signOutMutation.mutate,
-    
-    // 로딩 상태
-    isActionLoading: signOutMutation.isPending,
   };
 };
 ```
 
-### 액션 분리 패턴
+### 액션 분리
 ```typescript
 // src/domains/auth/hooks/useAuthActions.ts
 export const useAuthActions = () => {
@@ -331,149 +161,18 @@ export const useAuthActions = () => {
   const auth = useAuth();
 
   const signOutWithRedirect = async (redirectTo = "/") => {
-    await auth.signOutAsync();
+    await auth.signOut();
     navigate(redirectTo, { replace: true });
   };
 
-  return {
-    ...auth,                    // 기본 auth 기능 상속
-    signOutWithRedirect,        // navigation 포함 액션
-  };
+  return { ...auth, signOutWithRedirect };
 };
 ```
 
-## 서버 상태 vs 클라이언트 상태
+## 체크리스트
 
-### 서버 상태 (TanStack Query)
-```typescript
-// ✅ 서버에서 가져오는 데이터
-// - 사용자 정보, Todo 목록, 게시글 목록, 서버 설정
-
-const { data: user } = useAuth();
-const { data: todos } = useSupabaseQueryBuilder(todosQuery);
-```
-
-### 클라이언트 상태 (React State)
-```typescript
-// ✅ 클라이언트에서만 사용하는 상태
-// - UI 테마, 모달 상태, 폼 입력, 로컬 필터
-
-const [isModalOpen, setIsModalOpen] = useState(false);
-const [searchTerm, setSearchTerm] = useState('');
-const { theme, setTheme } = useTheme();
-```
-
-### Zustand 스토어 패턴 (필요시)
-```typescript
-// src/app/store/uiStore.ts
-import { create } from 'zustand';
-
-interface UIState {
-  isLoadingGlobal: boolean;
-  modalStack: string[];
-  setGlobalLoading: (isLoading: boolean) => void;
-  pushModal: (modalId: string) => void;
-  popModal: () => void;
-}
-
-export const useUIStore = create<UIState>((set) => ({
-  isLoadingGlobal: false,
-  modalStack: [],
-  
-  setGlobalLoading: (isLoading) => set({ isLoadingGlobal: isLoading }),
-  
-  pushModal: (modalId) => set((state) => ({
-    modalStack: [...state.modalStack, modalId]
-  })),
-  
-  popModal: () => set((state) => ({
-    modalStack: state.modalStack.slice(0, -1)
-  })),
-}));
-```
-
-## 캐시 무효화 패턴
-
-### Query 무효화 유틸리티
-```typescript
-export const useInvalidateQueries = () => {
-  const queryClient = useQueryClient();
-
-  return {
-    invalidateEntity: (entity: keyof typeof QUERY_KEYS) => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS[entity].all() });
-    },
-    
-    invalidateEntityDetail: (entity: keyof typeof QUERY_KEYS, id: string) => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS[entity].detail(id) });
-    },
-  };
-};
-```
-
-### 실시간 구독과 캐시 동기화
-```typescript
-export const useRealtimeSync = (table: string, userId?: string) => {
-  const queryClient = useQueryClient();
-
-  useEffect(() => {
-    if (!userId) return;
-
-    const subscription = supabase
-      .channel(`${table}-changes`)
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table,
-        filter: `user_id=eq.${userId}`
-      }, (payload) => {
-        switch (payload.eventType) {
-          case 'INSERT':
-          case 'UPDATE':
-            queryClient.invalidateQueries({ queryKey: [table] });
-            break;
-          case 'DELETE':
-            queryClient.removeQueries({ 
-              queryKey: [table, { type: 'detail', id: payload.old.id }] 
-            });
-            break;
-        }
-      })
-      .subscribe();
-
-    return () => subscription.unsubscribe();
-  }, [table, userId, queryClient]);
-};
-```
-
-## 에러 및 로딩 상태 처리
-
-### 글로벌 에러 처리
-```typescript
-const createQueryClient = () => new QueryClient({
-  defaultOptions: {
-    queries: {
-      onError: (error: ApiException) => {
-        if (error?.status === 401) {
-          // 자동 로그아웃 처리
-        }
-        console.error('Query error:', error);
-      },
-    },
-  },
-});
-```
-
-### 로딩 상태 조합
-```typescript
-export const useGlobalLoadingState = () => {
-  const { isFetching } = useIsFetching();
-  const { isPending } = useIsMutating();
-
-  return {
-    isLoading: isFetching > 0 || isPending > 0,
-    isQueryLoading: isFetching > 0,
-    isMutationLoading: isPending > 0,
-  };
-};
-```
+1. 스키마 타입 사용 확인
+2. Soft Delete 필터 적용
+3. Query Key 표준 구조 사용
+4. 상태 분리 원칙 준수
+5. 에러 처리 및 로딩 상태 관리

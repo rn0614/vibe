@@ -1,57 +1,51 @@
+---
+description: Playwright E2E 테스트 전략 및 패턴
+alwaysApply: false
+---
 # Testing Rules
 
-## 테스트 구조
+## 필수 체크리스트
+
+1. **Page Object Model**: 모든 테스트에서 POM 패턴 사용
+2. **API 모킹**: 외부 API 의존성 모킹 필수
+3. **테스트 격리**: 각 테스트 간 독립성 보장
+4. **접근성 테스트**: 키보드 네비게이션, 레이블 확인
+
+## 강제 패턴
 
 ### 파일 구조
 ```
 tests/
-├── setup/                    # 테스트 설정 및 유틸리티
-│   ├── global-setup.ts      # 글로벌 테스트 설정
-│   ├── test-utils.ts        # 공통 테스트 유틸리티
-│   └── pages/               # Page Object Model 클래스들
-├── fixtures/                # 테스트 데이터 및 Mock
-│   ├── users.json          # 사용자 테스트 데이터
-│   └── mock-api.ts         # API 모킹 함수들
-├── examples/               # 기본 예제 테스트들
-└── widgets/                # 컴포넌트별 테스트들
+├── setup/pages/          # Page Object Model 클래스
+├── fixtures/            # Mock 데이터
+├── examples/           # 기본 예제
+└── widgets/            # 컴포넌트별 테스트
 ```
 
 ### 네이밍 규칙
 ```typescript
-// ✅ 권장 네이밍
-component-name.spec.ts        // 컴포넌트 테스트
-feature-name.spec.ts          // 기능 테스트
-page-name.e2e.spec.ts        // E2E 페이지 테스트
+// ✅ 필수
+component-name.spec.ts     // 컴포넌트 테스트
+feature-name.spec.ts       // 기능 테스트
+page-name.e2e.spec.ts     // E2E 테스트
 
-// ❌ 비권장
-componentTest.ts              // .spec.ts 접미사 없음
-Component.test.tsx            // 컴포넌트와 혼동
+// ❌ 금지
+componentTest.ts          // .spec.ts 없음
+Component.test.tsx        // 혼동 가능
 ```
 
-## Playwright 설정
-
-### 기본 설정
+### Playwright 설정
 ```typescript
-// playwright.config.ts
 export default defineConfig({
   testDir: './tests',
   fullyParallel: true,
-  forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
-  reporter: 'html',
   
   use: {
     baseURL: 'http://localhost:5174',
     trace: 'on-first-retry',
   },
-
-  projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-    { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
-    { name: 'webkit', use: { ...devices['Desktop Safari'] } },
-  ],
-
+  
   webServer: {
     command: 'npm run dev',
     url: 'http://localhost:5174',
@@ -60,19 +54,10 @@ export default defineConfig({
 });
 ```
 
-### 실행 명령어
-```bash
-npm run test:e2e              # 모든 브라우저
-npm run test:e2e:headed       # 브라우저 창 표시
-npm run test:e2e:debug        # 디버그 모드
-npm run test:e2e:ui           # GUI 테스트 도구
-```
-
 ## Page Object Model
 
-### Base Page 클래스
+### Base Page
 ```typescript
-// tests/setup/pages/BasePage.ts
 export abstract class BasePage {
   readonly page: Page;
 
@@ -81,7 +66,7 @@ export abstract class BasePage {
   }
 
   abstract goto(): Promise<void>;
-
+  
   async waitForPageLoad(): Promise<void> {
     await this.page.waitForLoadState('networkidle');
   }
@@ -90,20 +75,9 @@ export abstract class BasePage {
 
 ### 컴포넌트 Page Object
 ```typescript
-// tests/setup/pages/AppHeaderPage.ts
 export class AppHeaderPage extends BasePage {
-  readonly header: Locator;
-  readonly logo: Locator;
-  readonly loginButton: Locator;
-  readonly themeToggleButton: Locator;
-
-  constructor(page: Page) {
-    super(page);
-    this.header = page.locator('nav.navbar');
-    this.logo = page.locator('a.navbar-brand');
-    this.loginButton = page.locator('text=로그인');
-    this.themeToggleButton = page.locator('button[title*="현재 테마"]');
-  }
+  readonly header = this.page.locator('nav.navbar');
+  readonly loginButton = this.page.locator('text=로그인');
 
   async goto(): Promise<void> {
     await this.page.goto('/');
@@ -112,44 +86,20 @@ export class AppHeaderPage extends BasePage {
 
   async expectHeaderToBeVisible(): Promise<void> {
     await expect(this.header).toBeVisible();
-    await expect(this.logo).toBeVisible();
-  }
-
-  async expectLoggedOutState(): Promise<void> {
-    await expect(this.loginButton).toBeVisible();
   }
 
   async clickLogin(): Promise<void> {
     await this.loginButton.click();
-  }
-
-  async toggleTheme(): Promise<void> {
-    await this.themeToggleButton.click();
   }
 }
 ```
 
 ## 테스트 유틸리티
 
-### 공통 유틸리티 함수
+### 공통 함수
 ```typescript
-// tests/setup/test-utils.ts
-
 export function getByTestId(page: Page, testId: string): Locator {
   return page.locator(`[data-testid="${testId}"]`);
-}
-
-export async function fillForm(page: Page, formData: Record<string, string>) {
-  for (const [testId, value] of Object.entries(formData)) {
-    await page.fill(`[data-testid="${testId}"]`, value);
-  }
-}
-
-export async function waitForLoadingToFinish(page: Page) {
-  await page.waitForSelector('[data-testid="loading-spinner"]', { 
-    state: 'hidden', 
-    timeout: 10000 
-  });
 }
 
 export async function waitForApiResponse(page: Page, urlPattern: string) {
@@ -158,53 +108,80 @@ export async function waitForApiResponse(page: Page, urlPattern: string) {
   );
 }
 
-export async function setLocalStorage(page: Page, key: string, value: string) {
-  await page.evaluate(({ key, value }) => {
-    localStorage.setItem(key, value);
-  }, { key, value });
-}
-
-export async function expectErrorMessage(page: Page, message: string) {
-  await expect(page.locator('[data-testid="error-message"]')).toContainText(message);
+export async function mockApiError(page: Page, endpoint: string, status = 500) {
+  await page.route(`**/${endpoint}`, route => {
+    route.fulfill({ status, body: JSON.stringify({ error: 'Server Error' }) });
+  });
 }
 ```
 
-## Mock 데이터 관리
+## 테스트 작성 패턴
+
+### 기본 구조
+```typescript
+test.describe('컴포넌트 테스트', () => {
+  let headerPage: AppHeaderPage;
+
+  test.beforeEach(async ({ page }) => {
+    headerPage = new AppHeaderPage(page);
+    await mockAuthApi(page);
+    await headerPage.goto();
+  });
+
+  test('기본 기능 동작', async () => {
+    // Given
+    await headerPage.expectHeaderToBeVisible();
+    
+    // When
+    await headerPage.clickLogin();
+    
+    // Then
+    await expect(headerPage.page).toHaveURL('/login');
+  });
+});
+```
+
+### 반응형 테스트
+```typescript
+const viewports = [
+  { name: 'mobile', width: 375, height: 667 },
+  { name: 'desktop', width: 1280, height: 720 },
+];
+
+viewports.forEach(({ name, width, height }) => {
+  test(`${name}에서 올바르게 표시`, async ({ page }) => {
+    await page.setViewportSize({ width, height });
+    await headerPage.goto();
+    await headerPage.expectHeaderToBeVisible();
+  });
+});
+```
+
+### 접근성 테스트
+```typescript
+test('키보드 네비게이션', async ({ page }) => {
+  await headerPage.goto();
+  await page.keyboard.press('Tab');
+  await page.keyboard.press('Enter');
+  
+  const focusedElement = await page.locator(':focus');
+  await expect(focusedElement).toBeVisible();
+});
+```
+
+## Mock 데이터
 
 ### API 모킹
 ```typescript
-// tests/fixtures/mock-api.ts
 export async function mockAuthApi(page: Page) {
   await page.route('**/auth/me', route => {
     route.fulfill({
       status: 200,
-      contentType: 'application/json',
       body: JSON.stringify({
         id: '1',
         email: 'test@example.com',
         name: '테스트 사용자'
       })
-    });
-  });
-
-  await page.route('**/auth/login', route => {
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        user: { id: '1', email: 'test@example.com' },
-        token: 'mock-jwt-token'
-      })
-    });
-  });
-}
-
-export async function mockApiError(page: Page, endpoint: string, status = 500) {
-  await page.route(`**/${endpoint}`, route => {
-    route.fulfill({
-      status,
-      contentType: 'application/json',
-      body: JSON.stringify({ error: 'Server Error' })
     });
   });
 }
@@ -216,123 +193,24 @@ export async function mockApiError(page: Page, endpoint: string, status = 500) {
 {
   "validUser": {
     "email": "test@example.com",
-    "password": "password123",
-    "name": "테스트 사용자"
-  },
-  "adminUser": {
-    "email": "admin@example.com",
-    "password": "admin123",
-    "name": "관리자"
+    "password": "password123"
   }
 }
 ```
 
-## 테스트 작성 패턴
+## 금지사항
 
-### 기본 테스트 구조
-```typescript
-import { test, expect } from '@playwright/test';
-import { AppHeaderPage } from '../setup/pages/AppHeaderPage';
-import { mockAuthApi } from '../fixtures/mock-api';
+- Page Object Model 없이 직접 locator 사용
+- 실제 API 호출 (모킹 필수)
+- 하드코딩된 대기 시간 (`page.waitForTimeout`)
+- 테스트 간 데이터 공유
+- CI에서 `.only()` 사용
 
-test.describe('컴포넌트명 테스트', () => {
-  let headerPage: AppHeaderPage;
+## 테스트 격리
 
-  test.beforeEach(async ({ page }) => {
-    headerPage = new AppHeaderPage(page);
-    await mockAuthApi(page);
-    await headerPage.goto();
-  });
-
-  test('기본 기능이 올바르게 동작한다', async () => {
-    // Given: 초기 상태 확인
-    await headerPage.expectHeaderToBeVisible();
-    
-    // When: 액션 수행
-    await headerPage.clickLogin();
-    
-    // Then: 결과 확인
-    await expect(headerPage.page).toHaveURL('/login');
-  });
-
-  test('API 에러 시 적절히 처리된다', async ({ page }) => {
-    await mockApiError(page, 'auth/me', 401);
-    await headerPage.goto();
-    await headerPage.expectLoggedOutState();
-  });
-});
-```
-
-### 반응형 테스트
-```typescript
-test.describe('반응형 테스트', () => {
-  const viewports = [
-    { name: 'mobile', width: 375, height: 667 },
-    { name: 'tablet', width: 768, height: 1024 },
-    { name: 'desktop', width: 1280, height: 720 },
-  ];
-
-  viewports.forEach(({ name, width, height }) => {
-    test(`${name} 뷰포트에서 올바르게 표시된다`, async ({ page }) => {
-      await page.setViewportSize({ width, height });
-      await headerPage.goto();
-      await headerPage.expectHeaderToBeVisible();
-    });
-  });
-});
-```
-
-### 접근성 테스트
-```typescript
-test.describe('접근성 테스트', () => {
-  test('키보드 네비게이션이 가능하다', async ({ page }) => {
-    await headerPage.goto();
-    
-    // Tab 키로 네비게이션
-    await page.keyboard.press('Tab');
-    await page.keyboard.press('Enter');
-    
-    // 포커스된 요소 확인
-    const focusedElement = await page.locator(':focus');
-    await expect(focusedElement).toBeVisible();
-  });
-
-  test('적절한 레이블이 있다', async () => {
-    await headerPage.goto();
-    await expect(headerPage.themeToggleButton).toHaveAttribute('title');
-  });
-});
-```
-
-## 성능 및 시각적 테스트
-
-### 페이지 로딩 성능
-```typescript
-test('페이지 로딩 시간이 적절하다', async ({ page }) => {
-  const startTime = Date.now();
-  
-  await page.goto('/');
-  await page.waitForLoadState('networkidle');
-  
-  const loadTime = Date.now() - startTime;
-  expect(loadTime).toBeLessThan(3000); // 3초 이내
-});
-```
-
-### 스크린샷 비교
-```typescript
-test('컴포넌트 스크린샷 비교', async ({ page }) => {
-  await headerPage.goto();
-  await expect(headerPage.header).toHaveScreenshot('header-default.png');
-});
-```
-
-## 데이터 정리 및 격리
-
-### 테스트 격리
+### 데이터 정리
 ```typescript
 test.beforeEach(async ({ page }) => {
-  // 로컬 스토리지 정리
   await page.evaluate(() => {
     localStorage.clear();
     sessionStorage.clear();
@@ -340,45 +218,39 @@ test.beforeEach(async ({ page }) => {
 });
 
 test.afterEach(async ({ page }) => {
-  // 쿠키 정리
   await page.context().clearCookies();
 });
 ```
 
 ## 디버깅
 
-### 디버깅 도구
+### 유용한 도구
 ```typescript
-// 테스트 실행 중 브라우저 일시정지
+// 브라우저 일시정지
 await page.pause();
-
-// 콘솔 로그 확인
-page.on('console', msg => console.log('PAGE LOG:', msg.text()));
 
 // 스크린샷 저장
 await page.screenshot({ path: 'debug.png' });
 
-// 요소 대기
-await page.waitForSelector('[data-testid="element"]', { timeout: 10000 });
+// 콘솔 로그 확인
+page.on('console', msg => console.log('PAGE LOG:', msg.text()));
 
-// 네트워크 요청 완료 대기
+// 네트워크 대기
 await page.waitForLoadState('networkidle');
 ```
 
-## CI/CD 통합
+## 실행 명령어
 
-### GitHub Actions
-```yaml
-- name: Install Playwright
-  run: npx playwright install --with-deps
-
-- name: Run tests
-  run: npm run test:e2e
-
-- name: Upload report
-  uses: actions/upload-artifact@v3
-  if: always()
-  with:
-    name: playwright-report
-    path: playwright-report/
+```bash
+npm run test:e2e              # 모든 테스트
+npm run test:e2e:ui           # GUI 모드
+npm run test:e2e:debug        # 디버그 모드
 ```
+
+## 체크리스트
+
+1. Page Object Model 구현
+2. API 모킹 설정
+3. 테스트 격리 확인
+4. 접근성 테스트 포함
+5. 반응형 테스트 추가
